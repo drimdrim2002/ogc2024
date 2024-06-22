@@ -1,4 +1,3 @@
-
 import json
 import numpy as np
 from itertools import permutations
@@ -25,8 +24,14 @@ class Order:
 
         self.ready_time = self.order_time + self.cook_time
 
+    """
+        Latitude, Longitude는 풀이 과정에는 필요 없으며, 시각화할 때 필요하다.
+    """
+
     def __repr__(self) -> str:
-        return f'Order([{self.id}, {self.order_time}, {self.shop_lat}, {self.shop_lon}, {self.dlv_lat}, {self.dlv_lon}, {self.volume}, {self.cook_time}, {self.deadline}])'
+        return (f'Order([id: {self.id}, Order Time, {self.order_time}, Volume: {self.volume}'
+                f', Cook Time: {self.cook_time}, Dead Line :{self.deadline}])')
+
 
 # 배달원 class
 class Rider:
@@ -39,14 +44,18 @@ class Rider:
         self.fixed_cost = rider_info[4]
         self.service_time = rider_info[5]
         self.available_number = rider_info[6]
-    
+
+    #
     def __repr__(self) -> str:
-        return f'Rider([{self.type}, {self.speed}, {self.capa}, {self.var_cost}, {self.fixed_cost}, {self.service_time}, {self.available_number}])'
-    
+        return (f'Rider([Rider Type: {self.type}, Speed: {self.speed}, Volume Capa: {self.capa}, '
+                f'Variable Cost: {self.var_cost} ,Fixed Cost: {self.fixed_cost}, Service Time: {self.service_time}, '
+                f'Vehicle Count: {self.available_number}])')
+
     # 주어진 거리에 대한 배달원 비용 계산
     # = 배달원별 고정비 + 이동거리로 계산된 변동비
     def calculate_cost(self, dist):
         return self.fixed_cost + dist / 100.0 * self.var_cost
+
 
 # 묶음 주문 정보
 class Bundle:
@@ -65,9 +74,10 @@ class Bundle:
         self.cost = self.rider.calculate_cost(self.total_dist)
         self.cost_per_ord = self.cost / len(self.shop_seq)
 
-
     def __repr__(self) -> str:
-        return f'Bundle(all_orders, {self.rider.type}, {self.shop_seq}, {self.dlv_seq}, {self.total_volume}, {self.feasible})'
+        return (f'Bundle(all_orders, Rider Type: {self.rider.type}, Shop Seq No {self.shop_seq}, '
+                f' Delivery Seq No: {self.dlv_seq}, Total Volume: {self.total_volume}'
+                f' , Feasible: {self.feasible})')
 
 
 # 주문들의 총 부피 계산
@@ -76,26 +86,28 @@ class Bundle:
 def get_total_volume(all_orders, shop_seq):
     return sum(all_orders[k].volume for k in shop_seq)
 
+
 # shop_seq의 순서로 pickup하고 dlv_seq 순서로 배달할 때 총 거리 계산
 # Note: shop_seq 와 dlv_seq는 같은 주문 id들을 가져야 함. 즉, set(shop_seq) == seq(dlv_seq). (주문 id들의 순서는 바뀔 수 있음)
 def get_total_distance(K, dist_mat, shop_seq, dlv_seq):
-    return sum(dist_mat[i,j] for (i,j) in zip(shop_seq[:-1], shop_seq[1:])) + dist_mat[shop_seq[-1], dlv_seq[0]+K] + sum(dist_mat[i+K,j+K] for (i,j) in zip(dlv_seq[:-1], dlv_seq[1:]))
+    return sum(dist_mat[i, j] for (i, j) in zip(shop_seq[:-1], shop_seq[1:])) + dist_mat[
+        shop_seq[-1], dlv_seq[0] + K] + sum(dist_mat[i + K, j + K] for (i, j) in zip(dlv_seq[:-1], dlv_seq[1:]))
+
 
 # shop_seq의 순서로 pickup하고 dlv_seq 순서로 배달할 때 pickup과 delivery시간을 반환
 # Note: shop_seq 와 dlv_seq는 같은 주문 id들을 가져야 함. 즉, set(shop_seq) == seq(dlv_seq). (주문 id들의 순서는 바뀔 수 있음)
 def get_pd_times(all_orders, rider, shop_seq, dlv_seq):
-    
     K = len(all_orders)
 
     pickup_times = {}
 
     k = shop_seq[0]
-    t = all_orders[k].order_time + all_orders[k].cook_time # order time + order cook time
+    t = all_orders[k].ready_time  # order time + order cook time
     pickup_times[k] = t
     for next_k in shop_seq[1:]:
-        t = max(t+rider.T[k, next_k], all_orders[next_k].ready_time) # max{travel time + service time, ready time}
+        t = max(t + rider.T[k, next_k], all_orders[next_k].ready_time)  # max{travel time + service time, ready time}
         pickup_times[next_k] = t
-                
+
         k = next_k
 
     dlv_times = {}
@@ -104,7 +116,7 @@ def get_pd_times(all_orders, rider, shop_seq, dlv_seq):
     t += rider.T[shop_seq[-1], k + K]
 
     dlv_times[k] = t
-        
+
     for next_k in dlv_seq[1:]:
         t += rider.T[k + K, next_k + K]
 
@@ -114,25 +126,26 @@ def get_pd_times(all_orders, rider, shop_seq, dlv_seq):
 
     return pickup_times, dlv_times
 
+
 # shop_seq의 순서로 pickup하고 dlv_seq 순서로 배달원 rider가 배달할 때 묶음주문 제약 만족 여부 테스트
 # 모든 제약을 만족하면 0 반환
 # 용량 제약을 만족하지 못하면 -1 반환
 # 시간 제약을 만족하지 못하면 -2 반환
 # Note: shop_seq 와 dlv_seq는 같은 주문 id들을 가져야 함. 즉, set(shop_seq) == seq(dlv_seq). (주문 id들의 순서는 바뀔 수 있음)
 def test_route_feasibility(all_orders, rider, shop_seq, dlv_seq):
-
     total_vol = get_total_volume(all_orders, shop_seq)
     if total_vol > rider.capa:
         # Capacity overflow!
-        return -1 # Capacity infeasibility
+        return -1  # Capacity infeasibility
 
     pickup_times, dlv_times = get_pd_times(all_orders, rider, shop_seq, dlv_seq)
 
     for k, dlv_time in dlv_times.items():
         if dlv_time > all_orders[k].deadline:
-            return -2 # Deadline infeasibility
-    
+            return -2  # Deadline infeasibility
+
     return 0
+
 
 # 두 개의 bundle이 제약을 만족하면서 묶일 수 있는지 테스트
 # 합쳐진 붂음배송 경로는 가능한 모든 pickup/delivery 조합을 확인
@@ -154,11 +167,13 @@ def try_merging_bundles(K, dist_mat, all_orders, bundle1, bundle2):
             for shop_pem in permutations(merged_orders):
                 for dlv_pem in permutations(merged_orders):
                     feasibility_check = test_route_feasibility(all_orders, rider, shop_pem, dlv_pem)
-                    if feasibility_check == 0: # feasible!
+                    if feasibility_check == 0:  # feasible!
                         total_dist = get_total_distance(K, dist_mat, shop_pem, dlv_pem)
-                        return Bundle(all_orders, rider, list(shop_pem), list(dlv_pem), bundle1.total_volume+bundle2.total_volume, total_dist)
+                        return Bundle(all_orders, rider, list(shop_pem), list(dlv_pem),
+                                      bundle1.total_volume + bundle2.total_volume, total_dist)
 
     return None
+
 
 # 주어진 bundle의 배달원을 변경하는것이 가능한지 테스트
 # Note: 원래 bindle의 방문 순서가 최적이 아닐수도 있기 때문에 방문 순서 조합을 다시 확인함
@@ -168,37 +183,41 @@ def try_bundle_rider_changing(all_orders, bundle, rider):
         for shop_pem in permutations(orders):
             for dlv_pem in permutations(orders):
                 feasibility_check = test_route_feasibility(all_orders, rider, shop_pem, dlv_pem)
-                if feasibility_check == 0: # feasible!
+                if feasibility_check == 0:  # feasible!
                     # Note: in-place replacing!
                     bundle.rider = rider
                     bundle.update_cost()
                     return True
 
     return False
-    
+
+
 # 남아 있는 배달원 중에 *변동비*가 더 싼 배달원을 반환
 # 더 싼 배달원이 없으면 None 반환
 def get_cheaper_available_riders(all_riders, rider):
     for r in all_riders:
         if r.available_number > 0 and r.var_cost < rider.var_cost:
             return r
-        
+
     return None
+
 
 # 주어진 bundle list에서 임의로 두 개를 반환(중복없이)
 def select_two_bundles(all_bundles):
     bundle1, bundle2 = random.sample(all_bundles, 2)
     return bundle1, bundle2
 
+
 # 평균 비용(목적함수) 계산
 # = 총 비용 / 주문 수
 def get_avg_cost(all_orders, all_bundles):
     return sum([bundle.cost for bundle in all_bundles]) / len(all_orders)
 
+
 # 주어진 bundle list에서 제출용 solution 포멧으로 반환
 def create_solution(prob_name, bundles):
     sol = {
-        'bundles' : [
+        'bundles': [
             # rider type, shop_seq, dlv_seq
             [bundle.rider.type, bundle.shop_seq, bundle.dlv_seq]
             for bundle in bundles
@@ -207,14 +226,11 @@ def create_solution(prob_name, bundles):
     return sol
 
 
-
 # 주어진 solution의 feasibility를 테스트
 # Note: solution은 [배달원유형, pickup 순서, 배달 순서]의 list
 # 반환하는 dict에는 solution이 feasible일 경우에는 평균 비용등의 정보가 추가적으로 포함됨
 # solution이 infeasible일 경우에는 그 이유가 'infeasibility' 항목(key)으로 반환
 def solution_check(K, all_orders, all_riders, dist_mat, solution):
-
-    
     total_cost = 0
     total_dist = 0
 
@@ -229,7 +245,7 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
         }
 
         all_deliveies = []
-        
+
         for bundle_info in solution:
             if not isinstance(bundle_info, list) or len(bundle_info) != 3:
                 infeasibility = f'A bundle information must be a list of rider type, shop_seq, and dlv_seq! ===> {bundle_info}'
@@ -243,7 +259,7 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
             if not rider_type in ['BIKE', 'WALK', 'CAR']:
                 infeasibility = f'Rider type must be either of BIKE, WALK, or CAR! ===> {rider_type}'
                 break
-            
+
             # Get rider object
             rider = None
             for r in all_riders:
@@ -259,7 +275,7 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
                 break
 
             for k in shop_seq:
-                if not isinstance(k, int) or k<0 or k>=K:
+                if not isinstance(k, int) or k < 0 or k >= K:
                     infeasibility = f'Pickup sequence has invalid order number: {k}'
                     break
 
@@ -269,7 +285,7 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
                 break
 
             for k in dlv_seq:
-                if not isinstance(k, int) or k<0 or k>=K:
+                if not isinstance(k, int) or k < 0 or k >= K:
                     infeasibility = f'Delivery sequence has invalid order number: {k}'
                     break
 
@@ -278,7 +294,7 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
             if total_volume > rider.capa:
                 infeasibility = f"Bundle's total volume exceeds the rider's capacity!: {total_volume} > {rider.capa}"
                 break
-            
+
             # Deadline chaeck
             pickup_times, dlv_times = get_pd_times(all_orders, rider.T, shop_seq, dlv_seq)
             for k in dlv_seq:
@@ -286,13 +302,12 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
                 if dlv_times[k] > all_orders[k].deadline:
                     infeasibility = f'Order {k} deadline is violated!: {dlv_times[k]} > {dlv_times[k]}'
                     break
-            
+
             dist = get_total_distance(K, dist_mat, shop_seq, dlv_seq)
             cost = rider.calculate_cost(dist)
 
             total_dist += dist
             total_cost += cost
-
 
         # Check used number of riders
         for r in all_riders:
@@ -317,8 +332,7 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
     else:
         infeasibility = 'Solution must be a list of bundle information!'
 
-
-    if infeasibility is None: # All checks are passed!
+    if infeasibility is None:  # All checks are passed!
         checked_solution = {
             'total_cost': float(total_cost),
             'avg_cost': float(total_cost / K),
@@ -334,14 +348,13 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
             'feasible': False,
             'infeasibility': infeasibility,
             'bundles': solution
-        }        
-
+        }
 
     return checked_solution
 
+
 # 주어진 solution의 경로를 visualize
 def draw_route_solution(all_orders, solution=None):
-    
     plt.subplots(figsize=(8, 8))
     node_size = 5
 
@@ -352,7 +365,6 @@ def draw_route_solution(all_orders, solution=None):
     dlv_x = [order.dlv_lon for order in all_orders]
     dlv_y = [order.dlv_lat for order in all_orders]
     plt.scatter(dlv_x, dlv_y, c='blue', s=node_size, label='DLVS')
-
 
     if solution is not None:
 
@@ -389,9 +401,9 @@ def draw_route_solution(all_orders, solution=None):
 
     plt.legend()
 
+
 # 주어진 soliution의 묶음 배송 방문 시간대를 visualize
 def draw_bundle_solution(all_orders, all_riders, dist_mat, solution):
-
     plt.subplots(figsize=(6, len(solution['bundles'])))
 
     x_max = max([ord.deadline for ord in all_orders])
@@ -417,36 +429,38 @@ def draw_bundle_solution(all_orders, all_riders, dist_mat, solution):
 
         total_volume = 0
         for k in shop_seq:
-            total_volume += all_orders[k].volume # order volume
-            plt.hlines(y+y_delta/2, all_orders[k].ready_time, all_orders[k].deadline, colors='gray')
-            plt.vlines(all_orders[k].ready_time, y, y+y_delta, colors='gray')
-            plt.vlines(all_orders[k].deadline, y, y+y_delta, colors='gray')
+            total_volume += all_orders[k].volume  # order volume
+            plt.hlines(y + y_delta / 2, all_orders[k].ready_time, all_orders[k].deadline, colors='gray')
+            plt.vlines(all_orders[k].ready_time, y, y + y_delta, colors='gray')
+            plt.vlines(all_orders[k].deadline, y, y + y_delta, colors='gray')
 
             if total_volume > rider.capa:
-                plt.scatter(pickup_times[k], y+y_delta/2, c='red', zorder=100, marker='^', edgecolors='red', linewidth=0.5)
+                plt.scatter(pickup_times[k], y + y_delta / 2, c='red', zorder=100, marker='^', edgecolors='red',
+                            linewidth=0.5)
             else:
-                plt.scatter(pickup_times[k], y+y_delta/2, c='green', zorder=100)
+                plt.scatter(pickup_times[k], y + y_delta / 2, c='green', zorder=100)
 
             if dlv_times[k] > all_orders[k].deadline:
-                plt.scatter(dlv_times[k], y+y_delta/2, c='red', zorder=100, marker='*', edgecolors='red', linewidth=0.5)
+                plt.scatter(dlv_times[k], y + y_delta / 2, c='red', zorder=100, marker='*', edgecolors='red',
+                            linewidth=0.5)
             else:
-                plt.scatter(dlv_times[k], y+y_delta/2, c='orange', zorder=100)
+                plt.scatter(dlv_times[k], y + y_delta / 2, c='orange', zorder=100)
 
-            plt.text(all_orders[k].ready_time, y+y_delta/2, f'{all_orders[k].ready_time} ', ha='right', va='center', c='white', fontsize=6)
-            plt.text(all_orders[k].deadline, y+y_delta/2, f' {all_orders[k].deadline}', ha='left', va='center', c='white', fontsize=6)
+            plt.text(all_orders[k].ready_time, y + y_delta / 2, f'{all_orders[k].ready_time} ', ha='right', va='center',
+                     c='white', fontsize=6)
+            plt.text(all_orders[k].deadline, y + y_delta / 2, f' {all_orders[k].deadline}', ha='left', va='center',
+                     c='white', fontsize=6)
 
             y += y_delta
 
         dist = get_total_distance(len(all_orders), dist_mat, shop_seq, dlv_seq)
         cost = rider.calculate_cost(dist)
 
-        plt.text(0, y+y_delta, f'{rider_type}: {shop_seq}-{dlv_seq}, tot_cost={cost}, tot_dist={dist}', ha='left', va='top', c='gray', fontsize=8)
+        plt.text(0, y + y_delta, f'{rider_type}: {shop_seq}-{dlv_seq}, tot_cost={cost}, tot_dist={dist}', ha='left',
+                 va='top', c='gray', fontsize=8)
         y += bundle_gap
         plt.hlines(y, 0, x_max, colors='gray', linestyles='dotted')
-        y += y_delta/2
-
+        y += y_delta / 2
 
     plt.ylim(0, y)
     plt.show()
-
-
