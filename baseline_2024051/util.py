@@ -30,7 +30,8 @@ class Order:
 
     def __repr__(self) -> str:
         return (f'Order([id: {self.id}, Order Time, {self.order_time}, Volume: {self.volume}'
-                f', Cook Time: {self.cook_time}, Dead Line :{self.deadline}])')
+                f', Cook Time: {self.cook_time}, Ready TIme: {self.ready_time},'
+                f' Dead Line :{self.deadline}])')
 
 
 # 배달원 class
