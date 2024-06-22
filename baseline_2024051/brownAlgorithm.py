@@ -37,89 +37,55 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
     transit_callback_index = routing.RegisterTransitCallback(distance_callback)
     routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
-    # [END arc_cost]
 
-    # Add Distance constraint.
-    # [START distance_constraint]
-    dimension_name = 'Distance'
-    routing.AddDimension(
-        transit_callback_index,
-        0,  # no slack
-        3000,  # vehicle maximum travel distance
-        True,  # start cumul to zero
-        dimension_name)
-    distance_dimension = routing.GetDimensionOrDie(dimension_name)
-    distance_dimension.SetGlobalSpanCostCoefficient(100)
-    # [END distance_constraint]
-
-    # Define Transportation Requests.
-    # [START pickup_delivery_constraint]
-    for request in data['pickups_deliveries']:
-        pickup_index = manager.NodeToIndex(request[0])
-        delivery_index = manager.NodeToIndex(request[1])
-        routing.AddPickupAndDelivery(pickup_index, delivery_index)
-        routing.solver().Add(
-            routing.VehicleVar(pickup_index) == routing.VehicleVar(
-                delivery_index))
-        routing.solver().Add(
-            distance_dimension.CumulVar(pickup_index) <=
-            distance_dimension.CumulVar(delivery_index))
-    # [END pickup_delivery_constraint]
-
-    # Setting first solution heuristic.
-    # [START parameters]
-    search_parameters = pywrapcp.DefaultRoutingSearchParameters()
-    search_parameters.first_solution_strategy = (
-        routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION)
-    # [END parameters]
-
-    # Solve the problem.
-    # [START solve]
-    assignment = routing.SolveWithParameters(search_parameters)
-    # [END solve]
-
-    # Print solution on console.
-    # [START print_solution]
-    if assignment:
-        print_solution(data, manager, routing, assignment)
-    # [END print_solution]
-
-
+    # Add Capacity constraint.
     def demand_callback(from_index):
         """Returns the demand of the node."""
         # Convert from routing variable Index to demands NodeIndex.
         from_node = manager.IndexToNode(from_index)
-        return data["demands"][from_node]
+        return data['demands'][from_node]
 
-    demand_callback_index = routing.RegisterUnaryTransitCallback(demand_callback)
+    demand_callback_index = routing.RegisterUnaryTransitCallback(
+        demand_callback)
     routing.AddDimensionWithVehicleCapacity(
         demand_callback_index,
         0,  # null capacity slack
-        data["vehicle_capacities"],  # vehicle maximum capacities
+        data['vehicle_capacities'],  # vehicle maximum capacities
         True,  # start cumul to zero
-        "Capacity",
-    )
+        'Capacity')
+
+    # Add Distance constraint.
+    dimension_name = 'Distance'
+    routing.AddDimension(
+        transit_callback_index,
+        0,  # no slack
+        9999,  # vehicle maximum travel distance
+        True,  # start cumul to zero
+        dimension_name)
+    distance_dimension = routing.GetDimensionOrDie(dimension_name)
+    distance_dimension.SetGlobalSpanCostCoefficient(100)
+
+    # Define Transportation Requests.
+    for request in data['pickups_deliveries']:
+        pickup_index = manager.NodeToIndex(request[0])
+        delivery_index = manager.NodeToIndex(request[1])
+        routing.AddPickupAndDelivery(pickup_index, delivery_index)
+        routing.solver().Add(routing.VehicleVar(pickup_index) == routing.VehicleVar(delivery_index))
+        routing.solver().Add(distance_dimension.CumulVar(pickup_index) <= distance_dimension.CumulVar(delivery_index))
 
     # Setting first solution heuristic.
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.first_solution_strategy = (
-        routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
-    )
-    search_parameters.local_search_metaheuristic = (
-        routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
-    )
-    search_parameters.time_limit.FromSeconds(1)
+        routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION)
 
     # Solve the problem.
-    solution = routing.SolveWithParameters(search_parameters)
+    assignment = routing.SolveWithParameters(search_parameters)
+    print(assignment)
 
     # Print solution on console.
-    if solution:
-        print_solution(data, manager, routing, solution)
-
-
-
-    # print(data)
+    if assignment:
+        print("1")
+        print_solution(data, manager, routing, assignment)
 
 
 def make_input_data(K, dist_mat, all_orders, all_riders):
@@ -131,7 +97,7 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
 
     data["pickups_deliveries"] = make_pickup_delivery(K)
 
-    data["demands"] = make_demand(K, all_orders)
+    data["demands"] = make_demand(all_orders)
 
     vehicle_capacity_arr = []
     num_vehicles = 0
@@ -146,12 +112,12 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
     return data
 
 
-def make_demand(K, all_orders):
+def make_demand(all_orders):
     demand_array = [0]
-    for _ in all_orders:
-        demand_array.append(0)
     for order in all_orders:
         demand_array.append(int(order.volume))
+    for order in all_orders:
+        demand_array.append(int(order.volume * -1))
     return demand_array
 
 
@@ -166,7 +132,7 @@ def make_distance_matrix(K, dist_mat):
         for shop_index in range(1, K):
             new_dist_matrix[customer_index][shop_index] = 9999
 
-    tolist = new_dist_matrix.tolist()
+    tolist = new_dist_matrix.astype(int).tolist()
     return tolist
 
 
