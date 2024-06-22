@@ -54,6 +54,8 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
                 if cur_obj < best_obj:
                     best_obj = cur_obj
                     print(f'Best obj = {best_obj}')
+                else:
+                    print(f'Worse obj = {best_obj}')
 
             else:
                 iter += 1
