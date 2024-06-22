@@ -2,6 +2,7 @@ import numpy as np
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 
+
 def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     print(f'K : {K}')
 
@@ -12,7 +13,6 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         print(f'Rider: {rider}')
 
     data = make_input_data(K, dist_mat, all_orders, all_riders)
-
 
     # Create the routing index manager.
     # [START index_manager]
@@ -73,11 +73,46 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         routing.solver().Add(routing.VehicleVar(pickup_index) == routing.VehicleVar(delivery_index))
         routing.solver().Add(distance_dimension.CumulVar(pickup_index) <= distance_dimension.CumulVar(delivery_index))
 
+    # Create and register a transit callback.
+    def time_callback_car(from_index, to_index):
+        """Returns the travel time between the two nodes."""
+        # Convert from routing variable Index to time matrix NodeIndex.
+        from_node = manager.IndexToNode(from_index)
+        to_node = manager.IndexToNode(to_index)
+        return data["time_matrix_car"][from_node][to_node]
+
+    def time_callback_bike(from_index, to_index):
+        """Returns the travel time between the two nodes."""
+        # Convert from routing variable Index to time matrix NodeIndex.
+        from_node = manager.IndexToNode(from_index)
+        to_node = manager.IndexToNode(to_index)
+        return data["time_matrix_bike"][from_node][to_node]
+
+    def time_callback_walk(from_index, to_index):
+        """Returns the travel time between the two nodes."""
+        # Convert from routing variable Index to time matrix NodeIndex.
+        from_node = manager.IndexToNode(from_index)
+        to_node = manager.IndexToNode(to_index)
+        return data["time_matrix_walk"][from_node][to_node]
+
+    transit_callback_index_car = routing.RegisterTransitCallback(time_callback_car)
+    transit_callback_index_bike = routing.RegisterTransitCallback(time_callback_bike)
+    transit_callback_index_walk = routing.RegisterTransitCallback(time_callback_walk)
+
+    for vehicle_index in range(len(data["vehicle_type_by_index"])):
+        vehicle_type = data["vehicle_type_by_index"][vehicle_index]
+        if vehicle_type == 'CAR':
+            routing.SetArcCostEvaluatorOfVehicle(transit_callback_index_car, vehicle_index)
+        elif vehicle_type == 'BIKE':
+            routing.SetArcCostEvaluatorOfVehicle(transit_callback_index_bike, vehicle_index)
+        else:
+            routing.SetArcCostEvaluatorOfVehicle(transit_callback_index_walk, vehicle_index)
+
     # Setting first solution heuristic.
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.first_solution_strategy = (
         routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION)
-
+    # search_parameters.time_limit.seconds = 10
     # Solve the problem.
     assignment = routing.SolveWithParameters(search_parameters)
     print(assignment)
@@ -91,7 +126,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 def make_input_data(K, dist_mat, all_orders, all_riders):
     data = {}
 
-    data["depot"] = 0 # dummy depot
+    data["depot"] = 0  # dummy depot
 
     data["distance_matrix"] = make_distance_matrix(K, dist_mat)
 
@@ -101,16 +136,22 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
 
     data["demands"] = make_demand(all_orders)
 
+    data["vehicle_type_by_index"] = {}
     vehicle_capacity_arr = []
     num_vehicles = 0
 
+    vehicle_index = 0
     for rider in all_riders:
         num_vehicles += rider.available_number
         for _ in range(rider.available_number):
             vehicle_capacity_arr.append(rider.capa)
+            data["vehicle_type_by_index"][vehicle_index] = rider.type
+            vehicle_index += 1
 
-        time_matrix = [[x / rider.speed + rider.service_time if x > 0 else 0 for x in row] for row in
-         data["distance_matrix"]]
+        time_matrix = [
+            [int(x / rider.speed + rider.service_time) if x > 0 else 0 for x in row]
+            for row in data["distance_matrix"]]
+
         if rider.type == 'CAR':
             data["time_matrix_car"] = time_matrix
         elif rider.type == 'BIKE':
@@ -120,9 +161,6 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
 
     data["num_vehicles"] = num_vehicles
     data["vehicle_capacities"] = vehicle_capacity_arr
-
-
-
 
     return data
 
@@ -158,7 +196,8 @@ def make_pickup_delivery(K):
         np_array[order_index][1] = int(order_index + 1 + K)
     return np_array.astype(int).tolist()
 
-def make_time_window(all_orders) :
+
+def make_time_window(all_orders):
     time_window_arr = []
     time_window_arr.append((0, 99999))
 
@@ -168,6 +207,7 @@ def make_time_window(all_orders) :
         time_window_arr.append((order.ready_time, order.deadline))
 
     return time_window_arr
+
 
 def print_solution(data, manager, routing, solution):
     """Prints solution on console."""
