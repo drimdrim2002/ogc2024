@@ -95,19 +95,34 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
 
     data["distance_matrix"] = make_distance_matrix(K, dist_mat)
 
+    data["time_window"] = make_time_window(all_orders)
+
     data["pickups_deliveries"] = make_pickup_delivery(K)
 
     data["demands"] = make_demand(all_orders)
 
     vehicle_capacity_arr = []
     num_vehicles = 0
+
     for rider in all_riders:
         num_vehicles += rider.available_number
         for _ in range(rider.available_number):
             vehicle_capacity_arr.append(rider.capa)
 
+        time_matrix = [[x / rider.speed + rider.service_time if x > 0 else 0 for x in row] for row in
+         data["distance_matrix"]]
+        if rider.type == 'CAR':
+            data["time_matrix_car"] = time_matrix
+        elif rider.type == 'BIKE':
+            data["time_matrix_bike"] = time_matrix
+        else:
+            data["time_matrix_walk"] = time_matrix
+
     data["num_vehicles"] = num_vehicles
     data["vehicle_capacities"] = vehicle_capacity_arr
+
+
+
 
     return data
 
@@ -141,8 +156,18 @@ def make_pickup_delivery(K):
     for order_index in range(K):
         np_array[order_index][0] = int(order_index + 1)
         np_array[order_index][1] = int(order_index + 1 + K)
-
     return np_array.astype(int).tolist()
+
+def make_time_window(all_orders) :
+    time_window_arr = []
+    time_window_arr.append((0, 99999))
+
+    for order in all_orders:
+        time_window_arr.append((order.ready_time, order.deadline))
+    for order in all_orders:
+        time_window_arr.append((order.ready_time, order.deadline))
+
+    return time_window_arr
 
 def print_solution(data, manager, routing, solution):
     """Prints solution on console."""
