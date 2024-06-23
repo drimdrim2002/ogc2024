@@ -113,7 +113,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     routing.AddDimension(
         transit_callback_index_car,
         0,  # allow waiting time
-        9999,  # maximum time per vehicle
+        99999,  # maximum time per vehicle
         False,  # Don't force start cumul to zero.
         time_window_car,
     )
@@ -122,7 +122,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     routing.AddDimension(
         transit_callback_index_bike,
         0,  # allow waiting time
-        30,  # maximum time per vehicle
+        99999,  # maximum time per vehicle
         False,  # Don't force start cumul to zero.
         time_window_bike,
     )
@@ -130,7 +130,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     routing.AddDimension(
         transit_callback_index_walk,
         0,  # allow waiting time
-        30,  # maximum time per vehicle
+        99999,  # maximum time per vehicle
         False,  # Don't force start cumul to zero.
         time_window_walk,
     )
@@ -143,7 +143,9 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         if location_idx == data["depot"]:
             continue
         index = manager.NodeToIndex(location_idx)
-        time_dimension_car.CumulVar(index).SetRange(time_window[1], time_window[1])
+        time_dimension_car.CumulVar(index).SetRange(time_window[0], time_window[1])
+        time_dimension_bike.CumulVar(index).SetRange(time_window[0], time_window[1])
+        time_dimension_walk.CumulVar(index).SetRange(time_window[0], time_window[1])
 
 
     # Setting first solution heuristic.
