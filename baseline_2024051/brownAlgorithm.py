@@ -1,6 +1,7 @@
 import numpy as np
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
+import math
 
 
 def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
@@ -187,7 +188,7 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
             vehicle_index += 1
 
         time_matrix = [
-            [int(x / rider.speed + rider.service_time) if x > 0 else 0 for x in row]
+            [int(math.ceil(x / rider.speed + rider.service_time)) if x > 0 else 0 for x in row]
             for row in data["distance_matrix"]]
 
         if rider.type == 'CAR':
@@ -242,13 +243,12 @@ def make_pickup_delivery(K):
 
 
 def make_time_window(all_orders):
-    time_window_arr = []
-    time_window_arr.append((0, 99999))
+    time_window_arr = [(0, 99999)]
 
     for order in all_orders:
-        time_window_arr.append((order.ready_time, order.deadline))
+        time_window_arr.append((order.ready_time, order.deadline - 1))
     for order in all_orders:
-        time_window_arr.append((order.ready_time, order.deadline))
+        time_window_arr.append((order.ready_time, order.deadline - 1))
 
     return time_window_arr
 
@@ -259,6 +259,8 @@ def print_solution(data, manager, routing, solution):
     total_time = 0
 
     solution_bundle_arr = []
+    order_size = len(data["pickups_deliveries"])
+
     for vehicle_id in range(data["num_vehicles"]):
         index = routing.Start(vehicle_id)
         plan_output = f"Route for vehicle {vehicle_id}:\n"
@@ -281,12 +283,11 @@ def print_solution(data, manager, routing, solution):
                 f" Time({solution.Min(time_var)},{solution.Max(time_var)})"
                 " -> "
             )
-            order_size = len(data["pickups_deliveries"])
             if 0 < index <= 2 * order_size:
                 if index <= order_size:
-                    shop_seq.append(index - 1)
+                    shop_seq.append(index -1)
                 else:
-                    dlv_seq.append(index - order_size - 1)
+                    dlv_seq.append(index - order_size -1)
             index = solution.Value(routing.NextVar(index))
         time_var = time_dimension.CumulVar(index)
         plan_output += (
@@ -303,6 +304,14 @@ def print_solution(data, manager, routing, solution):
             solution_bundle.append(shop_seq)
             solution_bundle.append(dlv_seq)
             solution_bundle_arr.append(solution_bundle)
+
+    customer_count = 0
+    for solution_bundle in solution_bundle_arr:
+        customer_count += len(solution_bundle[1])
+
+    if customer_count != order_size:
+        raise Exception("Short")
+
 
     print(f"Total time of all routes: {total_time}min")
     return solution_bundle_arr

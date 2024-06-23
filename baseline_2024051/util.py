@@ -246,8 +246,9 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
         }
 
         all_deliveies = []
-
+        bundle_index = 0
         for bundle_info in solution:
+
             if not isinstance(bundle_info, list) or len(bundle_info) != 3:
                 infeasibility = f'A bundle information must be a list of rider type, shop_seq, and dlv_seq! ===> {bundle_info}'
                 break
@@ -255,6 +256,7 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
             rider_type = bundle_info[0]
             shop_seq = bundle_info[1]
             dlv_seq = bundle_info[2]
+
 
             # rider type check
             if not rider_type in ['BIKE', 'WALK', 'CAR']:
@@ -273,27 +275,36 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
             # Pickup sequence check
             if not isinstance(shop_seq, list):
                 infeasibility = f'The second bundle infomation must be a list of pickups! ===> {shop_seq}'
+                print(infeasibility)
                 break
 
             for k in shop_seq:
                 if not isinstance(k, int) or k < 0 or k >= K:
                     infeasibility = f'Pickup sequence has invalid order number: {k}'
+                    print(infeasibility)
+
                     break
 
             # Delivery sequence check
             if not isinstance(dlv_seq, list):
                 infeasibility = f'The third bundle infomation must be a list of deliveries! ===> {dlv_seq}'
+                print(infeasibility)
+
                 break
 
             for k in dlv_seq:
                 if not isinstance(k, int) or k < 0 or k >= K:
                     infeasibility = f'Delivery sequence has invalid order number: {k}'
+                    print(infeasibility)
+
                     break
 
             # Volume check
             total_volume = get_total_volume(all_orders, shop_seq)
             if total_volume > rider.capa:
                 infeasibility = f"Bundle's total volume exceeds the rider's capacity!: {total_volume} > {rider.capa}"
+                print(infeasibility)
+
                 break
 
             # Deadline chaeck
@@ -301,7 +312,8 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
             for k in dlv_seq:
                 all_deliveies.append(k)
                 if dlv_times[k] > all_orders[k].deadline:
-                    infeasibility = f'Order {k} deadline is violated!: {dlv_times[k]} > {dlv_times[k]}'
+                    infeasibility = f'Order {k} deadline is violated!: {dlv_times[k]} > {all_orders[k].deadline}'
+                    print(infeasibility)
                     break
 
             dist = get_total_distance(K, dist_mat, shop_seq, dlv_seq)
@@ -309,6 +321,10 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
 
             total_dist += dist
             total_cost += cost
+
+            bundle_index += 1
+
+
 
         # Check used number of riders
         for r in all_riders:
@@ -318,8 +334,6 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
 
         # Check deliveries
         for k in range(K):
-            if k == 36:
-                t = 1
             count = 0
             for k_sol in all_deliveies:
                 if k == k_sol:
@@ -397,11 +411,15 @@ def draw_route_solution(all_orders, solution=None):
                     route_x.append(all_orders[i].shop_lon)
                     route_y.append(all_orders[i].shop_lat)
                 except:
+                    print(i)
                     t = 1
             for i in dlv_seq:
-                route_x.append(all_orders[i].dlv_lon)
-                route_y.append(all_orders[i].dlv_lat)
-
+                try:
+                    route_x.append(all_orders[i].dlv_lon)
+                    route_y.append(all_orders[i].dlv_lat)
+                except:
+                    print(i)
+                    t = 1
             plt.plot(route_x, route_y, c=route_color, linewidth=0.5)
 
     plt.legend()
