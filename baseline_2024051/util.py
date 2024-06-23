@@ -318,6 +318,8 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
 
         # Check deliveries
         for k in range(K):
+            if k == 36:
+                t = 1
             count = 0
             for k_sol in all_deliveies:
                 if k == k_sol:
@@ -391,9 +393,11 @@ def draw_route_solution(all_orders, solution=None):
             route_x = []
             route_y = []
             for i in shop_seq:
-                route_x.append(all_orders[i].shop_lon)
-                route_y.append(all_orders[i].shop_lat)
-
+                try:
+                    route_x.append(all_orders[i].shop_lon)
+                    route_y.append(all_orders[i].shop_lat)
+                except:
+                    t = 1
             for i in dlv_seq:
                 route_x.append(all_orders[i].dlv_lon)
                 route_y.append(all_orders[i].dlv_lat)

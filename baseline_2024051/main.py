@@ -34,33 +34,33 @@ def main():
 
     alg_end_time = time.time()
 
-    # with open(problem_file, 'r') as f:
-    #     prob = json.load(f)
-    #
-    # K = prob['K']
-    #
-    # ALL_ORDERS = [Order(order_info) for order_info in prob['ORDERS']]
-    # ALL_RIDERS = [Rider(rider_info) for rider_info in prob['RIDERS']]
-    #
-    # DIST = np.array(prob['DIST'])
-    # for r in ALL_RIDERS:
-    #     r.T = np.round(DIST / r.speed + r.service_time)
-    #
-    # checked_solution = solution_check(K, ALL_ORDERS, ALL_RIDERS, DIST, solution)
-    #
-    # checked_solution['time'] = alg_end_time - alg_start_time
-    # checked_solution['timelimit_exception'] = (
-    #                                                   alg_end_time - alg_start_time) > timelimit + 1  # allowing additional 1 second!
-    # checked_solution['exception'] = exception
-    #
-    # checked_solution['prob_name'] = prob['name']
-    # checked_solution['prob_file'] = problem_file
-    #
-    # checked_solution
-    #
-    # draw_route_solution(ALL_ORDERS, checked_solution)
-    #
-    # draw_bundle_solution(ALL_ORDERS, ALL_RIDERS, DIST, checked_solution)
+    with open(problem_file, 'r') as f:
+        prob = json.load(f)
+
+    K = prob['K']
+
+    ALL_ORDERS = [Order(order_info) for order_info in prob['ORDERS']]
+    ALL_RIDERS = [Rider(rider_info) for rider_info in prob['RIDERS']]
+
+    DIST = np.array(prob['DIST'])
+    for r in ALL_RIDERS:
+        r.T = np.round(DIST / r.speed + r.service_time)
+
+    checked_solution = solution_check(K, ALL_ORDERS, ALL_RIDERS, DIST, solution)
+
+    checked_solution['time'] = alg_end_time - alg_start_time
+    checked_solution['timelimit_exception'] = (
+                                                      alg_end_time - alg_start_time) > timelimit + 1  # allowing additional 1 second!
+    checked_solution['exception'] = exception
+
+    checked_solution['prob_name'] = prob['name']
+    checked_solution['prob_file'] = problem_file
+
+    checked_solution
+
+    draw_route_solution(ALL_ORDERS, checked_solution)
+
+    draw_bundle_solution(ALL_ORDERS, ALL_RIDERS, DIST, checked_solution)
 
 
 if __name__ == "__main__":

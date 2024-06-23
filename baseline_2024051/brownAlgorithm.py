@@ -147,20 +147,18 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         time_dimension_bike.CumulVar(index).SetRange(time_window[0], time_window[1])
         time_dimension_walk.CumulVar(index).SetRange(time_window[0], time_window[1])
 
-
     # Setting first solution heuristic.
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.first_solution_strategy = (
-        routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION)
+        routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC)
     # search_parameters.time_limit.seconds = 10
     # Solve the problem.
     assignment = routing.SolveWithParameters(search_parameters)
-    print(assignment)
-
     # Print solution on console.
     if assignment:
-        print("1")
-        print_solution(data, manager, routing, assignment)
+        solution_bundle_arr = print_solution(data, manager, routing, assignment)
+        print(solution_bundle_arr)
+        return solution_bundle_arr
 
 
 def make_input_data(K, dist_mat, all_orders, all_riders):
@@ -258,11 +256,24 @@ def make_time_window(all_orders):
 def print_solution(data, manager, routing, solution):
     """Prints solution on console."""
     print(f"Objective: {solution.ObjectiveValue()}")
-    time_dimension = routing.GetDimensionOrDie("TimeCar")
     total_time = 0
+
+    solution_bundle_arr = []
     for vehicle_id in range(data["num_vehicles"]):
         index = routing.Start(vehicle_id)
         plan_output = f"Route for vehicle {vehicle_id}:\n"
+
+        vehicle_type = data["vehicle_type_by_index"][vehicle_id]
+
+        if vehicle_type == 'CAR':
+            time_dimension = routing.GetDimensionOrDie("TimeCar")
+        elif vehicle_type == 'BIKE':
+            time_dimension = routing.GetDimensionOrDie("TimeBike")
+        else:
+            time_dimension = routing.GetDimensionOrDie("TimeWalk")
+
+        shop_seq = []
+        dlv_seq = []
         while not routing.IsEnd(index):
             time_var = time_dimension.CumulVar(index)
             plan_output += (
@@ -270,6 +281,12 @@ def print_solution(data, manager, routing, solution):
                 f" Time({solution.Min(time_var)},{solution.Max(time_var)})"
                 " -> "
             )
+            order_size = len(data["pickups_deliveries"])
+            if 0 < index <= 2 * order_size:
+                if index <= order_size:
+                    shop_seq.append(index - 1)
+                else:
+                    dlv_seq.append(index - order_size - 1)
             index = solution.Value(routing.NextVar(index))
         time_var = time_dimension.CumulVar(index)
         plan_output += (
@@ -279,4 +296,13 @@ def print_solution(data, manager, routing, solution):
         plan_output += f"Time of the route: {solution.Min(time_var)}min\n"
         print(plan_output)
         total_time += solution.Min(time_var)
+
+        if len(shop_seq) > 0:
+            solution_bundle = []
+            solution_bundle.append(vehicle_type)
+            solution_bundle.append(shop_seq)
+            solution_bundle.append(dlv_seq)
+            solution_bundle_arr.append(solution_bundle)
+
     print(f"Total time of all routes: {total_time}min")
+    return solution_bundle_arr
