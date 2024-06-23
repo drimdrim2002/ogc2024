@@ -108,6 +108,44 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         else:
             routing.SetArcCostEvaluatorOfVehicle(transit_callback_index_walk, vehicle_index)
 
+        # Add Time Windows constraint.
+    time_window_car = "TimeCar"
+    routing.AddDimension(
+        transit_callback_index_car,
+        0,  # allow waiting time
+        9999,  # maximum time per vehicle
+        False,  # Don't force start cumul to zero.
+        time_window_car,
+    )
+
+    time_window_bike = "TimeBike"
+    routing.AddDimension(
+        transit_callback_index_bike,
+        9999,  # allow waiting time
+        30,  # maximum time per vehicle
+        False,  # Don't force start cumul to zero.
+        time_window_bike,
+    )
+    time_window_walk = "TimeWalk"
+    routing.AddDimension(
+        transit_callback_index_walk,
+        9999,  # allow waiting time
+        30,  # maximum time per vehicle
+        False,  # Don't force start cumul to zero.
+        time_window_walk,
+    )
+    time_dimension_car = routing.GetDimensionOrDie(time_window_car)
+    time_dimension_bike = routing.GetDimensionOrDie(time_window_bike)
+    time_dimension_walk = routing.GetDimensionOrDie(time_window_walk)
+
+    # Add time window constraints for each location except depot.
+    for location_idx, time_window in enumerate(data["time_window"]):
+        if location_idx == data["depot"]:
+            continue
+        index = manager.NodeToIndex(location_idx)
+        time_dimension_car.CumulVar(index).SetRange(0, time_window[1])
+
+
     # Setting first solution heuristic.
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.first_solution_strategy = (
@@ -180,10 +218,16 @@ def make_distance_matrix(K, dist_mat):
         for column_index in range(K):
             new_dist_matrix[row_index + 1][column_index + 1] = dist_mat[row_index][column_index]
 
+    # set long distance from depot to customer
+    for customer_index in range(K + 1, 2 * K + 1):
+        new_dist_matrix[0][customer_index] = 999999
+
     # set long distance from customer to shop
-    for customer_index in range(K + 1, 2 * K):
-        for shop_index in range(1, K):
-            new_dist_matrix[customer_index][shop_index] = 9999
+    for customer_index in range(K + 1, 2 * K + 1):
+        for shop_index in range(1, K + 1):
+            if customer_index == 101 and shop_index == 100:
+                t = 1
+            new_dist_matrix[customer_index][shop_index] = 999999
 
     tolist = new_dist_matrix.astype(int).tolist()
     return tolist
