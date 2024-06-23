@@ -121,7 +121,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     time_window_bike = "TimeBike"
     routing.AddDimension(
         transit_callback_index_bike,
-        9999,  # allow waiting time
+        0,  # allow waiting time
         30,  # maximum time per vehicle
         False,  # Don't force start cumul to zero.
         time_window_bike,
@@ -129,7 +129,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     time_window_walk = "TimeWalk"
     routing.AddDimension(
         transit_callback_index_walk,
-        9999,  # allow waiting time
+        0,  # allow waiting time
         30,  # maximum time per vehicle
         False,  # Don't force start cumul to zero.
         time_window_walk,
@@ -139,11 +139,11 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     time_dimension_walk = routing.GetDimensionOrDie(time_window_walk)
 
     # Add time window constraints for each location except depot.
-    for location_idx, time_window in enumerate(data["time_window"]):
+    for location_idx, time_window in enumerate(data["time_windows"]):
         if location_idx == data["depot"]:
             continue
         index = manager.NodeToIndex(location_idx)
-        time_dimension_car.CumulVar(index).SetRange(0, time_window[1])
+        time_dimension_car.CumulVar(index).SetRange(time_window[1], time_window[1])
 
 
     # Setting first solution heuristic.
@@ -168,7 +168,7 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
 
     data["distance_matrix"] = make_distance_matrix(K, dist_mat)
 
-    data["time_window"] = make_time_window(all_orders)
+    data["time_windows"] = make_time_window(all_orders)
 
     data["pickups_deliveries"] = make_pickup_delivery(K)
 
