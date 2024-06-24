@@ -151,14 +151,34 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     # Setting first solution heuristic.
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.first_solution_strategy = (
-        routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC)
-    # search_parameters.time_limit.seconds = 10
+        routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION)
+    search_parameters.time_limit.seconds = 60
     # Solve the problem.
     assignment = routing.SolveWithParameters(search_parameters)
     # Print solution on console.
     if assignment:
         solution_bundle_arr = print_solution(data, manager, routing, assignment)
-        print(solution_bundle_arr)
+
+        solution_bundle_by_type = {}
+        solution_bundle_by_type['CAR'] = []
+        solution_bundle_by_type['BIKE'] = []
+        solution_bundle_by_type['WALK'] = []
+        for solution_bundle in solution_bundle_arr:
+            vehicle_type = solution_bundle[0]
+            shop_seq = solution_bundle[1]
+            solution_bundle_by_type[vehicle_type].append(shop_seq)
+
+        for vehicle_type in solution_bundle_by_type.keys():
+            print(vehicle_type)
+            dlvry_seq_by_type = solution_bundle_by_type[vehicle_type]
+            print(dlvry_seq_by_type)
+
+            if vehicle_type == 'WALK':
+                for dlvy_seq in dlvry_seq_by_type:
+                    for seq in dlvy_seq:
+                        print(f'Distance: {data["distance_matrix"][seq + 1][seq + K + 1]}')
+                        print(f'Time: {data["time_matrix_walk"][seq + 1][seq + K + 1]}')
+
         return solution_bundle_arr
 
 
@@ -215,8 +235,8 @@ def make_demand(all_orders):
 
 def make_distance_matrix(K, dist_mat):
     new_dist_matrix = np.zeros((2 * K + 1, 2 * K + 1))
-    for row_index in range(K):
-        for column_index in range(K):
+    for row_index in range(2 * K):
+        for column_index in range(2 * K):
             new_dist_matrix[row_index + 1][column_index + 1] = dist_mat[row_index][column_index]
 
     # set long distance from depot to customer
@@ -226,7 +246,7 @@ def make_distance_matrix(K, dist_mat):
     # set long distance from customer to shop
     for customer_index in range(K + 1, 2 * K + 1):
         for shop_index in range(1, K + 1):
-            if customer_index == 101 and shop_index == 100:
+            if customer_index == 13 and shop_index == 113:
                 t = 1
             new_dist_matrix[customer_index][shop_index] = 999999
 
@@ -285,9 +305,9 @@ def print_solution(data, manager, routing, solution):
             )
             if 0 < index <= 2 * order_size:
                 if index <= order_size:
-                    shop_seq.append(index -1)
+                    shop_seq.append(index - 1)
                 else:
-                    dlv_seq.append(index - order_size -1)
+                    dlv_seq.append(index - order_size - 1)
             index = solution.Value(routing.NextVar(index))
         time_var = time_dimension.CumulVar(index)
         plan_output += (
@@ -311,7 +331,6 @@ def print_solution(data, manager, routing, solution):
 
     if customer_count != order_size:
         raise Exception("Short")
-
 
     print(f"Total time of all routes: {total_time}min")
     return solution_bundle_arr
