@@ -3,6 +3,8 @@ from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 import math
 
+BIG_PENALTY_VALUE = 999999
+
 
 def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     print(f'K : {K}')
@@ -34,7 +36,9 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         # Convert from routing variable Index to distance matrix NodeIndex.
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
-        return data['distance_matrix'][from_node][to_node]
+        distance = data['distance_matrix'][from_node][to_node]
+        if distance < BIG_PENALTY_VALUE:
+            return distance
 
     transit_callback_index = routing.RegisterTransitCallback(distance_callback)
     routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
@@ -55,16 +59,20 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         True,  # start cumul to zero
         'Capacity')
 
+    # Allow to drop nodes.
+    # for node in range(1, len(data["distance_matrix"])):
+    #     routing.AddDisjunction([manager.NodeToIndex(node)], data["demands"][node])
+
     # Add Distance constraint.
     dimension_name = 'Distance'
     routing.AddDimension(
         transit_callback_index,
         0,  # no slack
-        9999,  # vehicle maximum travel distance
+        BIG_PENALTY_VALUE,  # vehicle maximum travel distance
         True,  # start cumul to zero
         dimension_name)
     distance_dimension = routing.GetDimensionOrDie(dimension_name)
-    distance_dimension.SetGlobalSpanCostCoefficient(100)
+    # distance_dimension.SetGlobalSpanCostCoefficient(100)
 
     # Define Transportation Requests.
     for request in data['pickups_deliveries']:
@@ -114,7 +122,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     routing.AddDimension(
         transit_callback_index_car,
         0,  # allow waiting time
-        99999,  # maximum time per vehicle
+        BIG_PENALTY_VALUE,  # maximum time per vehicle
         False,  # Don't force start cumul to zero.
         time_window_car,
     )
@@ -123,7 +131,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     routing.AddDimension(
         transit_callback_index_bike,
         0,  # allow waiting time
-        99999,  # maximum time per vehicle
+        BIG_PENALTY_VALUE,  # maximum time per vehicle
         False,  # Don't force start cumul to zero.
         time_window_bike,
     )
@@ -131,7 +139,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     routing.AddDimension(
         transit_callback_index_walk,
         0,  # allow waiting time
-        99999,  # maximum time per vehicle
+        BIG_PENALTY_VALUE,  # maximum time per vehicle
         False,  # Don't force start cumul to zero.
         time_window_walk,
     )
@@ -151,7 +159,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     # Setting first solution heuristic.
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.first_solution_strategy = (
-        routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION)
+        routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC)
     search_parameters.time_limit.seconds = 60
     # Solve the problem.
     assignment = routing.SolveWithParameters(search_parameters)
@@ -180,6 +188,8 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
                         print(f'Time: {data["time_matrix_walk"][seq + 1][seq + K + 1]}')
 
         return solution_bundle_arr
+    else:
+        print("No assignment")
 
 
 def make_input_data(K, dist_mat, all_orders, all_riders):
@@ -207,9 +217,18 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
             data["vehicle_type_by_index"][vehicle_index] = rider.type
             vehicle_index += 1
 
-        time_matrix = [
-            [int(math.ceil(x / rider.speed + rider.service_time)) if x > 0 else 0 for x in row]
-            for row in data["distance_matrix"]]
+        time_matrix = np.zeros((2 * K + 1, 2 * K + 1))
+        for row_index in range(0, 2 * K + 1):
+            for column_index in range(0, 2 * K + 1):
+                if row_index == 101 and column_index > 101:
+                    t = 1
+                distance = data["distance_matrix"][row_index][column_index]
+                if distance == 0:
+                    time_matrix[row_index][column_index] = int(0)
+                elif distance == BIG_PENALTY_VALUE:
+                    time_matrix[row_index][column_index] = int(BIG_PENALTY_VALUE)
+                else:
+                    time_matrix[row_index][column_index] = int(math.ceil(distance / rider.speed + rider.service_time))
 
         if rider.type == 'CAR':
             data["time_matrix_car"] = time_matrix
@@ -217,6 +236,18 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
             data["time_matrix_bike"] = time_matrix
         else:
             data["time_matrix_walk"] = time_matrix
+
+    print("BIKE")
+    for i in range(K + 1):
+        print(data["time_matrix_bike"][i][i + 100])
+
+    print("WALK")
+    for i in range(K + 1):
+        print(data["time_matrix_walk"][i][i + 100])
+
+    print("CAR")
+    for i in range(K + 1):
+        print(data["time_matrix_car"][i][i + 100])
 
     data["num_vehicles"] = num_vehicles
     data["vehicle_capacities"] = vehicle_capacity_arr
@@ -241,14 +272,18 @@ def make_distance_matrix(K, dist_mat):
 
     # set long distance from depot to customer
     for customer_index in range(K + 1, 2 * K + 1):
-        new_dist_matrix[0][customer_index] = 999999
+        new_dist_matrix[0][customer_index] = BIG_PENALTY_VALUE
 
     # set long distance from customer to shop
     for customer_index in range(K + 1, 2 * K + 1):
         for shop_index in range(1, K + 1):
-            if customer_index == 13 and shop_index == 113:
-                t = 1
-            new_dist_matrix[customer_index][shop_index] = 999999
+            new_dist_matrix[customer_index][shop_index] = BIG_PENALTY_VALUE
+
+    # set long distance from shop to customer without pickup
+    for sho_index in range(1, K + 1):
+        for customer_index in range(K + 1, 2 * K + 1):
+            if sho_index + K != customer_index:
+                new_dist_matrix[customer_index][shop_index] = BIG_PENALTY_VALUE
 
     tolist = new_dist_matrix.astype(int).tolist()
     return tolist
@@ -263,7 +298,7 @@ def make_pickup_delivery(K):
 
 
 def make_time_window(all_orders):
-    time_window_arr = [(0, 99999)]
+    time_window_arr = [(0, BIG_PENALTY_VALUE)]
 
     for order in all_orders:
         time_window_arr.append((order.ready_time, order.deadline - 1))
