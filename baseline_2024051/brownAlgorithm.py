@@ -23,27 +23,8 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         len(data['distance_matrix']), data['num_vehicles'], data['depot'])
     # [END index_manager]
 
-    # Create Routing Model.
-    # [START routing_model]
     routing = pywrapcp.RoutingModel(manager)
 
-    # [END routing_model]
-
-    # Define cost of each arc.
-    # [START arc_cost]
-    def distance_callback(from_index, to_index):
-        """Returns the manhattan distance between the two nodes."""
-        # Convert from routing variable Index to distance matrix NodeIndex.
-        from_node = manager.IndexToNode(from_index)
-        to_node = manager.IndexToNode(to_index)
-        distance = data['distance_matrix'][from_node][to_node]
-        if distance < BIG_PENALTY_VALUE:
-            return distance
-
-    transit_callback_index = routing.RegisterTransitCallback(distance_callback)
-    routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
-
-    # Add Capacity constraint.
     def demand_callback(from_index):
         """Returns the demand of the node."""
         # Convert from routing variable Index to demands NodeIndex.
@@ -59,29 +40,6 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         True,  # start cumul to zero
         'Capacity')
 
-    # Allow to drop nodes.
-    # for node in range(1, len(data["distance_matrix"])):
-    #     routing.AddDisjunction([manager.NodeToIndex(node)], data["demands"][node])
-
-    # Add Distance constraint.
-    dimension_name = 'Distance'
-    routing.AddDimension(
-        transit_callback_index,
-        0,  # no slack
-        BIG_PENALTY_VALUE,  # vehicle maximum travel distance
-        True,  # start cumul to zero
-        dimension_name)
-    distance_dimension = routing.GetDimensionOrDie(dimension_name)
-    # distance_dimension.SetGlobalSpanCostCoefficient(100)
-
-    # Define Transportation Requests.
-    for request in data['pickups_deliveries']:
-        pickup_index = manager.NodeToIndex(request[0])
-        delivery_index = manager.NodeToIndex(request[1])
-        routing.AddPickupAndDelivery(pickup_index, delivery_index)
-        routing.solver().Add(routing.VehicleVar(pickup_index) == routing.VehicleVar(delivery_index))
-        routing.solver().Add(distance_dimension.CumulVar(pickup_index) <= distance_dimension.CumulVar(delivery_index))
-
     # Create and register a transit callback.
     def time_callback_car(from_index, to_index):
         """Returns the travel time between the two nodes."""
@@ -90,62 +48,28 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         to_node = manager.IndexToNode(to_index)
         return data["time_matrix_car"][from_node][to_node]
 
-    def time_callback_bike(from_index, to_index):
-        """Returns the travel time between the two nodes."""
-        # Convert from routing variable Index to time matrix NodeIndex.
-        from_node = manager.IndexToNode(from_index)
-        to_node = manager.IndexToNode(to_index)
-        return data["time_matrix_bike"][from_node][to_node]
-
-    def time_callback_walk(from_index, to_index):
-        """Returns the travel time between the two nodes."""
-        # Convert from routing variable Index to time matrix NodeIndex.
-        from_node = manager.IndexToNode(from_index)
-        to_node = manager.IndexToNode(to_index)
-        return data["time_matrix_walk"][from_node][to_node]
-
     transit_callback_index_car = routing.RegisterTransitCallback(time_callback_car)
-    transit_callback_index_bike = routing.RegisterTransitCallback(time_callback_bike)
-    transit_callback_index_walk = routing.RegisterTransitCallback(time_callback_walk)
-
-    for vehicle_index in range(len(data["vehicle_type_by_index"])):
-        vehicle_type = data["vehicle_type_by_index"][vehicle_index]
-        if vehicle_type == 'CAR':
-            routing.SetArcCostEvaluatorOfVehicle(transit_callback_index_car, vehicle_index)
-        elif vehicle_type == 'BIKE':
-            routing.SetArcCostEvaluatorOfVehicle(transit_callback_index_bike, vehicle_index)
-        else:
-            routing.SetArcCostEvaluatorOfVehicle(transit_callback_index_walk, vehicle_index)
+    routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index_car)
 
         # Add Time Windows constraint.
     time_window_car = "TimeCar"
     routing.AddDimension(
         transit_callback_index_car,
         0,  # allow waiting time
-        BIG_PENALTY_VALUE,  # maximum time per vehicle
+        BIG_PENALTY_VALUE - 1000,  # maximum time per vehicle
         False,  # Don't force start cumul to zero.
         time_window_car,
     )
 
-    time_window_bike = "TimeBike"
-    routing.AddDimension(
-        transit_callback_index_bike,
-        0,  # allow waiting time
-        BIG_PENALTY_VALUE,  # maximum time per vehicle
-        False,  # Don't force start cumul to zero.
-        time_window_bike,
-    )
-    time_window_walk = "TimeWalk"
-    routing.AddDimension(
-        transit_callback_index_walk,
-        0,  # allow waiting time
-        BIG_PENALTY_VALUE,  # maximum time per vehicle
-        False,  # Don't force start cumul to zero.
-        time_window_walk,
-    )
     time_dimension_car = routing.GetDimensionOrDie(time_window_car)
-    time_dimension_bike = routing.GetDimensionOrDie(time_window_bike)
-    time_dimension_walk = routing.GetDimensionOrDie(time_window_walk)
+
+    # Define Transportation Requests.
+    for request in data['pickups_deliveries']:
+        pickup_index = manager.NodeToIndex(request[0])
+        delivery_index = manager.NodeToIndex(request[1])
+        routing.AddPickupAndDelivery(pickup_index, delivery_index)
+        routing.solver().Add(routing.VehicleVar(pickup_index) == routing.VehicleVar(delivery_index))
+        routing.solver().Add(time_dimension_car.CumulVar(pickup_index) <= time_dimension_car.CumulVar(delivery_index))
 
     # Add time window constraints for each location except depot.
     for location_idx, time_window in enumerate(data["time_windows"]):
@@ -153,19 +77,18 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
             continue
         index = manager.NodeToIndex(location_idx)
         time_dimension_car.CumulVar(index).SetRange(time_window[0], time_window[1])
-        time_dimension_bike.CumulVar(index).SetRange(time_window[0], time_window[1])
-        time_dimension_walk.CumulVar(index).SetRange(time_window[0], time_window[1])
 
     # Setting first solution heuristic.
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.first_solution_strategy = (
-        routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC)
-    search_parameters.time_limit.seconds = 60
+        routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION)
+    # search_parameters.time_limit.seconds = 60
     # Solve the problem.
     assignment = routing.SolveWithParameters(search_parameters)
     # Print solution on console.
     if assignment:
-        solution_bundle_arr = print_solution(data, manager, routing, assignment)
+        print_solution_simple(data, manager, routing, assignment)
+        solution_bundle_arr = make_solution_bundle(data, manager, routing, assignment)
 
         solution_bundle_by_type = {}
         solution_bundle_by_type['CAR'] = []
@@ -210,7 +133,21 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
     num_vehicles = 0
 
     vehicle_index = 0
+
     for rider in all_riders:
+        if rider.type == 'CAR':
+            car_rider = rider
+        elif rider.type == 'BIKE':
+            bike_rider = rider
+        else:
+            walk_rider = rider
+
+    ordered_riders = []
+    ordered_riders.append(car_rider)
+    ordered_riders.append(bike_rider)
+    ordered_riders.append(walk_rider)
+
+    for rider in ordered_riders:
         num_vehicles += rider.available_number
         for _ in range(rider.available_number):
             vehicle_capacity_arr.append(rider.capa)
@@ -220,8 +157,6 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
         time_matrix = np.zeros((2 * K + 1, 2 * K + 1))
         for row_index in range(0, 2 * K + 1):
             for column_index in range(0, 2 * K + 1):
-                if row_index == 101 and column_index > 101:
-                    t = 1
                 distance = data["distance_matrix"][row_index][column_index]
                 if distance == 0:
                     time_matrix[row_index][column_index] = int(0)
@@ -232,22 +167,33 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
 
         if rider.type == 'CAR':
             data["time_matrix_car"] = time_matrix
+            data["time_matrix_car"] = data["time_matrix_car"].astype(int).tolist()
         elif rider.type == 'BIKE':
             data["time_matrix_bike"] = time_matrix
+            data["time_matrix_bike"] = data["time_matrix_bike"].astype(int).tolist()
+
         else:
             data["time_matrix_walk"] = time_matrix
+            data["time_matrix_walk"] = data["time_matrix_walk"].astype(int).tolist()
 
-    print("BIKE")
-    for i in range(K + 1):
-        print(data["time_matrix_bike"][i][i + 100])
+    # print("BIKE")
+    # for i in range(K + 1):
+    #     print(data["time_matrix_bike"][i][i + 100])
+    #
+    # print("WALK")
+    # for i in range(K + 1):
+    #     print(data["time_matrix_walk"][i][i + 100])
+    #
+    # print("CAR")
+    # for i in range(K + 1):
+    #     print(data["time_matrix_car"][i][i + 100])
 
-    print("WALK")
-    for i in range(K + 1):
-        print(data["time_matrix_walk"][i][i + 100])
-
-    print("CAR")
-    for i in range(K + 1):
-        print(data["time_matrix_car"][i][i + 100])
+    for rider in all_riders:
+        num_vehicles += rider.available_number
+        for _ in range(rider.available_number):
+            vehicle_capacity_arr.append(rider.capa)
+            data["vehicle_type_by_index"][vehicle_index] = rider.type
+            vehicle_index += 1
 
     data["num_vehicles"] = num_vehicles
     data["vehicle_capacities"] = vehicle_capacity_arr
@@ -308,56 +254,67 @@ def make_time_window(all_orders):
     return time_window_arr
 
 
-def print_solution(data, manager, routing, solution):
+def print_solution_simple(data, manager, routing, solution):
     """Prints solution on console."""
-    print(f"Objective: {solution.ObjectiveValue()}")
+    # print(f"Objective: {solution.ObjectiveValue()}")
+    total_distance = 0
+    for vehicle_id in range(data["num_vehicles"]):
+        index = routing.Start(vehicle_id)
+        plan_output = f"Route for vehicle {vehicle_id}:\n"
+        route_distance = 0
+        while not routing.IsEnd(index):
+            plan_output += f" {manager.IndexToNode(index)} -> "
+            previous_index = index
+            index = solution.Value(routing.NextVar(index))
+            route_distance += routing.GetArcCostForVehicle(
+                previous_index, index, vehicle_id
+            )
+        plan_output += f"{manager.IndexToNode(index)}\n"
+        plan_output += f"Distance of the route: {route_distance}m\n"
+        print(plan_output)
+        total_distance += route_distance
+    print(f"Total Distance of all routes: {total_distance}m")
+
+
+def make_solution_bundle(data, manager, routing, solution):
+    """Prints solution on console."""
+    # print(f"Objective: {solution.ObjectiveValue()}")
     total_time = 0
 
     solution_bundle_arr = []
     order_size = len(data["pickups_deliveries"])
 
     for vehicle_id in range(data["num_vehicles"]):
-        index = routing.Start(vehicle_id)
-        plan_output = f"Route for vehicle {vehicle_id}:\n"
 
+        if vehicle_id == 1:
+            t = 1
+        index = routing.Start(vehicle_id)
         vehicle_type = data["vehicle_type_by_index"][vehicle_id]
 
-        if vehicle_type == 'CAR':
-            time_dimension = routing.GetDimensionOrDie("TimeCar")
-        elif vehicle_type == 'BIKE':
-            time_dimension = routing.GetDimensionOrDie("TimeBike")
-        else:
-            time_dimension = routing.GetDimensionOrDie("TimeWalk")
-
-        shop_seq = []
-        dlv_seq = []
+        shop_seq_arr = []
+        dlv_seq_arr = []
         while not routing.IsEnd(index):
-            time_var = time_dimension.CumulVar(index)
-            plan_output += (
-                f"{manager.IndexToNode(index)}"
-                f" Time({solution.Min(time_var)},{solution.Max(time_var)})"
-                " -> "
-            )
-            if 0 < index <= 2 * order_size:
+            real_seq = manager.IndexToNode(index)
+            if real_seq != 0:
                 if index <= order_size:
-                    shop_seq.append(index - 1)
+                    if index == 101:
+                        t = 1
+                    shop_seq = real_seq - 1
+                    shop_seq_arr.append(shop_seq)
                 else:
-                    dlv_seq.append(index - order_size - 1)
-            index = solution.Value(routing.NextVar(index))
-        time_var = time_dimension.CumulVar(index)
-        plan_output += (
-            f"{manager.IndexToNode(index)}"
-            f" Time({solution.Min(time_var)},{solution.Max(time_var)})\n"
-        )
-        plan_output += f"Time of the route: {solution.Min(time_var)}min\n"
-        print(plan_output)
-        total_time += solution.Min(time_var)
+                    dlv_seq = real_seq - order_size - 1
+                    dlv_seq_arr.append(dlv_seq)
 
-        if len(shop_seq) > 0:
+            index = solution.Value(routing.NextVar(index))
+
+        if len(shop_seq_arr) != len(dlv_seq_arr):
+            t = 1
+
+        if len(shop_seq_arr) > 0:
             solution_bundle = []
             solution_bundle.append(vehicle_type)
-            solution_bundle.append(shop_seq)
-            solution_bundle.append(dlv_seq)
+            solution_bundle.append(shop_seq_arr)
+            solution_bundle.append(dlv_seq_arr)
             solution_bundle_arr.append(solution_bundle)
 
     customer_count = 0
