@@ -87,7 +87,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     assignment = routing.SolveWithParameters(search_parameters)
     # Print solution on console.
     if assignment:
-        print_solution_simple(data, manager, routing, assignment)
+        print_solution_simple(data, manager, routing, assignment, all_riders, K)
         solution_bundle_arr = make_solution_bundle(data, manager, routing, assignment)
 
         solution_bundle_by_type = {}
@@ -248,16 +248,25 @@ def make_time_window(all_orders):
     return time_window_arr
 
 
-def print_solution_simple(data, manager, routing, solution):
+def print_solution_simple(data, manager, routing, solution, all_riders, K):
+    for rider in all_riders:
+        if rider.type == 'CAR':
+            car_rider = rider
+        elif rider.type == 'BIKE':
+            bike_rider = rider
+        else:
+            walk_rider = rider
+
     """Prints solution on console."""
     # print(f"Objective: {solution.ObjectiveValue()}")
-    total_distance = 0
+    total_cost = 0
     for vehicle_id in range(data["num_vehicles"]):
         index = routing.Start(vehicle_id)
         plan_output = f"Route for vehicle {vehicle_id}:\n"
         route_time = 0
         route_distance = 0
         prev_real_seq = manager.IndexToNode(index)
+
         while not routing.IsEnd(index):
             real_seq = manager.IndexToNode(index)
             plan_output += f" {real_seq} -> "
@@ -271,13 +280,30 @@ def print_solution_simple(data, manager, routing, solution):
                 route_distance += distance
             prev_real_seq = real_seq
 
-        plan_output += f"{real_seq}\n"
-        plan_output += f"Time of the route: {route_time}\n"
-        plan_output += f"Distance of the route: {route_distance}\n"
+
         if route_time > 0:
+            plan_output += f"{real_seq}\n"
+            plan_output += f"Time of the route: {route_time}\n"
+            plan_output += f"Distance of the route: {route_distance}\n"
+
+
+            vehicle_type = data['vehicle_type_by_index'][vehicle_id]
+            if vehicle_type == 'CAR':
+                route_cost = car_rider.calculate_cost(route_distance)
+            elif vehicle_type == 'BIKE':
+                route_cost = bike_rider.calculate_cost(route_distance)
+            else:
+                route_cost = walk_rider.calculate_cost(route_distance)
+            plan_output += f"Cost of the route: {route_cost}\n"
+
             print(plan_output)
-        total_distance += route_time
-    print(f"Total Distance of all routes: {total_distance}m")
+
+
+            total_cost += route_cost
+
+
+    print(f"Total Cost of all routes: {total_cost}")
+    print(f"Best Obj: {total_cost / K}")
 
 
 def make_solution_bundle(data, manager, routing, solution):
