@@ -49,7 +49,36 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         return data["time_matrix_car"][from_node][to_node]
 
     transit_callback_index_car = routing.RegisterTransitCallback(time_callback_car)
-    routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index_car)
+
+    def time_callback_bike(from_index, to_index):
+        """Returns the travel time between the two nodes."""
+        # Convert from routing variable Index to time matrix NodeIndex.
+        from_node = manager.IndexToNode(from_index)
+        to_node = manager.IndexToNode(to_index)
+        return data["time_matrix_bike"][from_node][to_node]
+
+    transit_callback_index_bike = routing.RegisterTransitCallback(time_callback_bike)
+
+
+    def time_callback_walk(from_index, to_index):
+        """Returns the travel time between the two nodes."""
+        # Convert from routing variable Index to time matrix NodeIndex.
+        from_node = manager.IndexToNode(from_index)
+        to_node = manager.IndexToNode(to_index)
+        return data["time_matrix_walk"][from_node][to_node]
+    transit_callback_index_walk = routing.RegisterTransitCallback(time_callback_walk)
+
+
+    for vehicle_index in range(len(data["vehicle_type_by_index"])):
+        vehicle_type = data["vehicle_type_by_index"][vehicle_index]
+        if vehicle_type == 'CAR':
+            routing.SetArcCostEvaluatorOfVehicle(transit_callback_index_car, vehicle_index)
+        elif vehicle_type == 'BIKE':
+            routing.SetArcCostEvaluatorOfVehicle(transit_callback_index_bike, vehicle_index)
+        else:
+            routing.SetArcCostEvaluatorOfVehicle(transit_callback_index_walk, vehicle_index)
+
+    # routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index_car)
 
     # Add Time Windows constraint.
     time_window_car = "TimeCar"
@@ -182,12 +211,12 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
     # for i in range(K + 1):
     #     print(data["time_matrix_car"][i][i + 100])
 
-    for rider in all_riders:
-        num_vehicles += rider.available_number
-        for _ in range(rider.available_number):
-            vehicle_capacity_arr.append(rider.capa)
-            data["vehicle_type_by_index"][vehicle_index] = rider.type
-            vehicle_index += 1
+    # for rider in all_riders:
+    #     num_vehicles += rider.available_number
+    #     for _ in range(rider.available_number):
+    #         vehicle_capacity_arr.append(rider.capa)
+    #         data["vehicle_type_by_index"][vehicle_index] = rider.type
+    #         vehicle_index += 1
 
     data["num_vehicles"] = num_vehicles
     data["vehicle_capacities"] = vehicle_capacity_arr
@@ -354,5 +383,4 @@ def make_solution_bundle(data, manager, routing, solution):
     if customer_count != order_size:
         raise Exception("Short")
 
-    print(f"Total time of all routes: {total_time}min")
     return solution_bundle_arr
