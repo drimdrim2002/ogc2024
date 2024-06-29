@@ -1,6 +1,6 @@
 from util import *
-from myalgorithm import algorithm
-# from brownAlgorithm import algorithm
+# from myalgorithm import algorithm
+from brownAlgorithm import algorithm
 import logging
 problem_file = '../alg_test_problems_20240429/TEST_K100_1.json'
 timelimit = 10
