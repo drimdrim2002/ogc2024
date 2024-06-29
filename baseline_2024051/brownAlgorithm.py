@@ -51,12 +51,12 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     transit_callback_index_car = routing.RegisterTransitCallback(time_callback_car)
     routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index_car)
 
-        # Add Time Windows constraint.
+    # Add Time Windows constraint.
     time_window_car = "TimeCar"
     routing.AddDimension(
         transit_callback_index_car,
         0,  # allow waiting time
-        BIG_PENALTY_VALUE - 1000,  # maximum time per vehicle
+        BIG_PENALTY_VALUE - 1000,  # maximum time per vehicle todo planning horizon을 확인해야 함
         False,  # Don't force start cumul to zero.
         time_window_car,
     )
@@ -103,12 +103,6 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
             print(vehicle_type)
             dlvry_seq_by_type = solution_bundle_by_type[vehicle_type]
             print(dlvry_seq_by_type)
-
-            if vehicle_type == 'WALK':
-                for dlvy_seq in dlvry_seq_by_type:
-                    for seq in dlvy_seq:
-                        print(f'Distance: {data["distance_matrix"][seq + 1][seq + K + 1]}')
-                        print(f'Time: {data["time_matrix_walk"][seq + 1][seq + K + 1]}')
 
         return solution_bundle_arr
     else:
@@ -261,18 +255,28 @@ def print_solution_simple(data, manager, routing, solution):
     for vehicle_id in range(data["num_vehicles"]):
         index = routing.Start(vehicle_id)
         plan_output = f"Route for vehicle {vehicle_id}:\n"
+        route_time = 0
         route_distance = 0
+        prev_real_seq = manager.IndexToNode(index)
         while not routing.IsEnd(index):
-            plan_output += f" {manager.IndexToNode(index)} -> "
+            real_seq = manager.IndexToNode(index)
+            plan_output += f" {real_seq} -> "
             previous_index = index
             index = solution.Value(routing.NextVar(index))
-            route_distance += routing.GetArcCostForVehicle(
+            route_time += routing.GetArcCostForVehicle(
                 previous_index, index, vehicle_id
             )
-        plan_output += f"{manager.IndexToNode(index)}\n"
-        plan_output += f"Distance of the route: {route_distance}m\n"
-        print(plan_output)
-        total_distance += route_distance
+            if prev_real_seq != real_seq:
+                distance = data["distance_matrix"][prev_real_seq][real_seq]
+                route_distance += distance
+            prev_real_seq = real_seq
+
+        plan_output += f"{real_seq}\n"
+        plan_output += f"Time of the route: {route_time}\n"
+        plan_output += f"Distance of the route: {route_distance}\n"
+        if route_time > 0:
+            print(plan_output)
+        total_distance += route_time
     print(f"Total Distance of all routes: {total_distance}m")
 
 
