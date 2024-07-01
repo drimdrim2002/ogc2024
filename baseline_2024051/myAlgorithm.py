@@ -9,12 +9,6 @@ BIG_PENALTY_VALUE = 999999
 def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     print(f'K : {K}')
 
-    for order in all_orders:
-        print(f'Order : {order}')
-
-    for rider in all_riders:
-        print(f'Rider: {rider}')
-
     data = make_input_data(K, dist_mat, all_orders, all_riders)
 
     # Create the routing index manager.
@@ -116,8 +110,8 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     # Setting first solution heuristic.
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.first_solution_strategy = (
-        routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION)
-    # search_parameters.time_limit.seconds = 60
+        routing_enums_pb2.FirstSolutionStrategy.AUTOMATIC)
+    search_parameters.time_limit.seconds = 50
     # Solve the problem.
     assignment = routing.SolveWithParameters(search_parameters)
     # Print solution on console.
