@@ -34,6 +34,24 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         True,  # start cumul to zero
         'Capacity')
 
+    rider_cost_info = {}
+    rider_cost_info['CAR'] = {}
+    rider_cost_info['BIKE'] = {}
+    rider_cost_info['WALK'] = {}
+
+    for rider in all_riders:
+        fixed_cost = rider.fixed_cost
+        var_cost = rider.var_cost
+        if rider.type == 'CAR':
+            rider_cost_info['CAR']['fixed_cost'] = fixed_cost
+            rider_cost_info['CAR']['var_cost'] = var_cost
+        elif rider.type == 'BIKE':
+            rider_cost_info['BIKE']['fixed_cost'] = fixed_cost
+            rider_cost_info['BIKE']['var_cost'] = var_cost
+        else:
+            rider_cost_info['WALK']['fixed_cost'] = fixed_cost
+            rider_cost_info['WALK']['var_cost'] = var_cost
+
     # Create and register a transit callback.
     def time_callback_car(from_index, to_index):
         """Returns the travel time between the two nodes."""
@@ -62,18 +80,55 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
     transit_callback_index_walk = routing.RegisterTransitCallback(time_callback_walk)
 
+    def cost_callback_car(from_index, to_index):
+        from_node = manager.IndexToNode(from_index)
+        to_node = manager.IndexToNode(to_index)
+        distance = data["distance_matrix"][from_node][to_node]
+        car_var_cost = rider_cost_info['CAR']['var_cost']
+
+        car_fixed_cost = rider_cost_info['CAR']['fixed_cost'] if from_node == 0 else 0
+        return int(car_fixed_cost) + int((distance / 100) * car_var_cost)
+
+    # cost_callback_car.SetGlobalSpanCostCoefficient(100)
+    cost_callback_index_car = routing.RegisterTransitCallback(cost_callback_car)
+
+    def cost_callback_bike(from_index, to_index):
+        from_node = manager.IndexToNode(from_index)
+        to_node = manager.IndexToNode(to_index)
+        distance = data["distance_matrix"][from_node][to_node]
+        bike_fixed_cost = rider_cost_info['BIKE']['fixed_cost'] if from_node == 0 else 0
+        bike_var_cost = rider_cost_info['BIKE']['var_cost']
+        return int(bike_fixed_cost) + int((distance / 100) * bike_var_cost)
+
+    # cost_callback_bike.SetGlobalSpanCostCoefficient(100)
+
+    cost_callback_index_bike = routing.RegisterTransitCallback(cost_callback_bike)
+
+    def cost_callback_walk(from_index, to_index):
+        from_node = manager.IndexToNode(from_index)
+        to_node = manager.IndexToNode(to_index)
+        distance = data["distance_matrix"][from_node][to_node]
+        walk_fixed_cost = rider_cost_info['WALK']['fixed_cost'] if from_node == 0 else 0
+
+        walk_var_cost = rider_cost_info['WALK']['var_cost']
+        return int(walk_fixed_cost) + int((distance / 100) * walk_var_cost)
+
+    # cost_callback_walk.SetGlobalSpanCostCoefficient(100)
+
+    cost_callback_index_walk = routing.RegisterTransitCallback(cost_callback_walk)
+
     transit_callback_arr = []
     for vehicle_index in range(len(data["vehicle_type_by_index"])):
         vehicle_type = data["vehicle_type_by_index"][vehicle_index]
         if vehicle_type == 'CAR':
             transit_callback_arr.append(transit_callback_index_car)
-            routing.SetArcCostEvaluatorOfVehicle(transit_callback_index_car, vehicle_index)
+            routing.SetArcCostEvaluatorOfVehicle(cost_callback_index_car, vehicle_index)
         elif vehicle_type == 'BIKE':
             transit_callback_arr.append(transit_callback_index_bike)
-            routing.SetArcCostEvaluatorOfVehicle(transit_callback_index_bike, vehicle_index)
+            routing.SetArcCostEvaluatorOfVehicle(cost_callback_index_bike, vehicle_index)
         else:
             transit_callback_arr.append(transit_callback_index_walk)
-            routing.SetArcCostEvaluatorOfVehicle(transit_callback_index_walk, vehicle_index)
+            routing.SetArcCostEvaluatorOfVehicle(cost_callback_index_walk, vehicle_index)
 
     # routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index_car)
 
@@ -110,7 +165,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     # Setting first solution heuristic.
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.first_solution_strategy = (
-        routing_enums_pb2.FirstSolutionStrategy.AUTOMATIC)
+        routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION)
     search_parameters.time_limit.seconds = 50
     # Solve the problem.
     assignment = routing.SolveWithParameters(search_parameters)
@@ -180,7 +235,7 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
         time_matrix = np.zeros((2 * K + 1, 2 * K + 1))
         for row_index in range(0, 2 * K + 1):
             for column_index in range(0, 2 * K + 1):
-                if row_index == 45 and column_index == 16 :
+                if row_index == 45 and column_index == 16:
                     t = 1
 
                 distance = data["distance_matrix"][row_index][column_index]
