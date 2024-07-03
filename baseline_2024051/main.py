@@ -2,9 +2,11 @@ import json
 
 from util import *
 # from myalgorithm import algorithm
-from myAlgorithm import algorithm
+from myalgorithm import algorithm
 import logging
 import glob
+import subprocess
+import multiprocessing
 
 problem_file = '../alg_test_problems_20240429/TEST_K200_2.json'
 timelimit = 10

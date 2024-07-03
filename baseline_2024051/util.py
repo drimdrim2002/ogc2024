@@ -8,10 +8,17 @@ import pprint
 import matplotlib.pyplot as plt
 
 
+# Change history
+# 2024/7/1 - Update total_dist for a new bundle as well in try_bundle_rider_changing()
+# 2024/6/21 - Fixed a comment in Order.__init__()
+# 2024/6/16 - Fixed a bug that does not set the bundle routes in try_bundle_rider_changing()
+# 2024/5/17 - Fixed a bug in get_pd_times()
+
+
 # 주문 class
 class Order:
     def __init__(self, order_info):
-        # [ORD_ID, ORD_TIME, SHOP_LAT, SHOP_LON, DLV_LAT, DLV_LON, VOL, COOK_TIME, DLV_DEADLINE]
+        # [ORD_ID, ORD_TIME, SHOP_LAT, SHOP_LON, DLV_LAT, DLV_LON, COOK_TIME, VOL, DLV_DEADLINE]
         self.id = order_info[0]
         self.order_time = order_info[1]
         self.shop_lat = order_info[2]
@@ -24,14 +31,8 @@ class Order:
 
         self.ready_time = self.order_time + self.cook_time
 
-    """
-        Latitude, Longitude는 풀이 과정에는 필요 없으며, 시각화할 때 필요하다.
-    """
-
     def __repr__(self) -> str:
-        return (f'Order([id: {self.id}, Order Time, {self.order_time}, Volume: {self.volume}'
-                f', Cook Time: {self.cook_time}, Ready TIme: {self.ready_time},'
-                f' Dead Line :{self.deadline}])')
+        return f'Order([{self.id}, {self.order_time}, {self.shop_lat}, {self.shop_lon}, {self.dlv_lat}, {self.dlv_lon}, {self.volume}, {self.cook_time}, {self.deadline}])'
 
 
 # 배달원 class
@@ -46,11 +47,8 @@ class Rider:
         self.service_time = rider_info[5]
         self.available_number = rider_info[6]
 
-    #
     def __repr__(self) -> str:
-        return (f'Rider([Rider Type: {self.type}, Speed: {self.speed}, Volume Capa: {self.capa}, '
-                f'Variable Cost: {self.var_cost} ,Fixed Cost: {self.fixed_cost}, Service Time: {self.service_time}, '
-                f'Vehicle Count: {self.available_number}])')
+        return f'Rider([{self.type}, {self.speed}, {self.capa}, {self.var_cost}, {self.fixed_cost}, {self.service_time}, {self.available_number}])'
 
     # 주어진 거리에 대한 배달원 비용 계산
     # = 배달원별 고정비 + 이동거리로 계산된 변동비
@@ -76,9 +74,7 @@ class Bundle:
         self.cost_per_ord = self.cost / len(self.shop_seq)
 
     def __repr__(self) -> str:
-        return (f'Bundle(all_orders, Rider Type: {self.rider.type}, Shop Seq No {self.shop_seq}, '
-                f' Delivery Seq No: {self.dlv_seq}, Total Volume: {self.total_volume}'
-                f' , Feasible: {self.feasible})')
+        return f'Bundle(all_orders, {self.rider.type}, {self.shop_seq}, {self.dlv_seq}, {self.total_volume}, {self.feasible})'
 
 
 # 주문들의 총 부피 계산
@@ -103,7 +99,7 @@ def get_pd_times(all_orders, rider, shop_seq, dlv_seq):
     pickup_times = {}
 
     k = shop_seq[0]
-    t = all_orders[k].ready_time  # order time + order cook time
+    t = all_orders[k].order_time + all_orders[k].cook_time  # order time + order cook time
     pickup_times[k] = t
     for next_k in shop_seq[1:]:
         t = max(t + rider.T[k, next_k], all_orders[next_k].ready_time)  # max{travel time + service time, ready time}
@@ -164,7 +160,8 @@ def try_merging_bundles(K, dist_mat, all_orders, bundle1, bundle2):
         riders = [bundle1.rider, bundle2.rider]
 
     for rider in riders:
-        if total_volume <= rider.capa:
+        # We skip the test if there are too many orders
+        if total_volume <= rider.capa and len(merged_orders) <= 5:
             for shop_pem in permutations(merged_orders):
                 for dlv_pem in permutations(merged_orders):
                     feasibility_check = test_route_feasibility(all_orders, rider, shop_pem, dlv_pem)
@@ -178,7 +175,7 @@ def try_merging_bundles(K, dist_mat, all_orders, bundle1, bundle2):
 
 # 주어진 bundle의 배달원을 변경하는것이 가능한지 테스트
 # Note: 원래 bindle의 방문 순서가 최적이 아닐수도 있기 때문에 방문 순서 조합을 다시 확인함
-def try_bundle_rider_changing(all_orders, bundle, rider):
+def try_bundle_rider_changing(all_orders, dist_mat, bundle, rider):
     if bundle.rider.type != rider.type and bundle.total_volume <= rider.capa:
         orders = bundle.shop_seq
         for shop_pem in permutations(orders):
@@ -186,7 +183,10 @@ def try_bundle_rider_changing(all_orders, bundle, rider):
                 feasibility_check = test_route_feasibility(all_orders, rider, shop_pem, dlv_pem)
                 if feasibility_check == 0:  # feasible!
                     # Note: in-place replacing!
+                    bundle.shop_seq = list(shop_pem)
+                    bundle.dlv_seq = list(dlv_pem)
                     bundle.rider = rider
+                    bundle.total_dist = get_total_distance(len(all_orders), dist_mat, bundle.shop_seq, bundle.dlv_seq)
                     bundle.update_cost()
                     return True
 
@@ -246,9 +246,8 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
         }
 
         all_deliveies = []
-        bundle_index = 0
-        for bundle_info in solution:
 
+        for bundle_info in solution:
             if not isinstance(bundle_info, list) or len(bundle_info) != 3:
                 infeasibility = f'A bundle information must be a list of rider type, shop_seq, and dlv_seq! ===> {bundle_info}'
                 break
@@ -256,7 +255,6 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
             rider_type = bundle_info[0]
             shop_seq = bundle_info[1]
             dlv_seq = bundle_info[2]
-
 
             # rider type check
             if not rider_type in ['BIKE', 'WALK', 'CAR']:
@@ -275,36 +273,27 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
             # Pickup sequence check
             if not isinstance(shop_seq, list):
                 infeasibility = f'The second bundle infomation must be a list of pickups! ===> {shop_seq}'
-                print(infeasibility)
                 break
 
             for k in shop_seq:
                 if not isinstance(k, int) or k < 0 or k >= K:
                     infeasibility = f'Pickup sequence has invalid order number: {k}'
-                    print(infeasibility)
-
                     break
 
             # Delivery sequence check
             if not isinstance(dlv_seq, list):
                 infeasibility = f'The third bundle infomation must be a list of deliveries! ===> {dlv_seq}'
-                print(infeasibility)
-
                 break
 
             for k in dlv_seq:
                 if not isinstance(k, int) or k < 0 or k >= K:
                     infeasibility = f'Delivery sequence has invalid order number: {k}'
-                    print(infeasibility)
-
                     break
 
             # Volume check
             total_volume = get_total_volume(all_orders, shop_seq)
             if total_volume > rider.capa:
                 infeasibility = f"Bundle's total volume exceeds the rider's capacity!: {total_volume} > {rider.capa}"
-                print(infeasibility)
-
                 break
 
             # Deadline chaeck
@@ -313,7 +302,6 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
                 all_deliveies.append(k)
                 if dlv_times[k] > all_orders[k].deadline:
                     infeasibility = f'Order {k} deadline is violated!: {dlv_times[k]} > {all_orders[k].deadline}'
-                    print(infeasibility)
                     break
 
             dist = get_total_distance(K, dist_mat, shop_seq, dlv_seq)
@@ -322,29 +310,29 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
             total_dist += dist
             total_cost += cost
 
-            bundle_index += 1
-
-
-
-        # Check used number of riders
-        for r in all_riders:
-            if r.available_number < used_riders[r.type]:
-                infeasibility = f'The number of used riders of type {r.type} exceeds the given available limit!'
+            if infeasibility is not None:
                 break
 
-        # Check deliveries
-        for k in range(K):
-            count = 0
-            for k_sol in all_deliveies:
-                if k == k_sol:
-                    count += 1
+        if infeasibility is None:
+            # Check used number of riders
+            for r in all_riders:
+                if r.available_number < used_riders[r.type]:
+                    infeasibility = f'The number of used riders of type {r.type} exceeds the given available limit!'
+                    break
 
-            if count > 1:
-                infeasibility = f'Order {k} is assigned more than once! ===> {count} > 1'
-                break
-            elif count == 0:
-                infeasibility = f'Order {k} is NOT assigned!'
-                break
+            # Check deliveries
+            for k in range(K):
+                count = 0
+                for k_sol in all_deliveies:
+                    if k == k_sol:
+                        count += 1
+
+                if count > 1:
+                    infeasibility = f'Order {k} is assigned more than once! ===> {count} > 1'
+                    break
+                elif count == 0:
+                    infeasibility = f'Order {k} is NOT assigned!'
+                    break
 
     else:
         infeasibility = 'Solution must be a list of bundle information!'
@@ -407,19 +395,13 @@ def draw_route_solution(all_orders, solution=None):
             route_x = []
             route_y = []
             for i in shop_seq:
-                try:
-                    route_x.append(all_orders[i].shop_lon)
-                    route_y.append(all_orders[i].shop_lat)
-                except:
-                    print(i)
-                    t = 1
+                route_x.append(all_orders[i].shop_lon)
+                route_y.append(all_orders[i].shop_lat)
+
             for i in dlv_seq:
-                try:
-                    route_x.append(all_orders[i].dlv_lon)
-                    route_y.append(all_orders[i].dlv_lat)
-                except:
-                    print(i)
-                    t = 1
+                route_x.append(all_orders[i].dlv_lon)
+                route_y.append(all_orders[i].dlv_lat)
+
             plt.plot(route_x, route_y, c=route_color, linewidth=0.5)
 
     plt.legend()
@@ -486,4 +468,5 @@ def draw_bundle_solution(all_orders, all_riders, dist_mat, solution):
         y += y_delta / 2
 
     plt.ylim(0, y)
-    plt.show()
+
+
