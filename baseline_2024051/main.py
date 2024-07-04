@@ -24,6 +24,7 @@ def main():
             all_data[key_name] = data
 
     for file_name, input_data in all_data.items():
+        print(f'file name: {file_name}')
         # Now you have a list `all_data` containing the data from each JSON file
         checked_solution = solve(input_data)
         all_solution[file_name] = checked_solution
@@ -50,9 +51,6 @@ def main():
 
     # write_solutions(all_solution)
 
-    # draw_route_solution(ALL_ORDERS, checked_solution)
-    #
-    # draw_bundle_solution(ALL_ORDERS, ALL_RIDERS, DIST, checked_solution)
 
 
 def write_solutions(all_solution):

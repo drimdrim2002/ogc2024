@@ -165,10 +165,14 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     # Setting first solution heuristic.
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.first_solution_strategy = (
-        routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION)
-    search_parameters.time_limit.seconds = 30
+        routing_enums_pb2.FirstSolutionStrategy.AUTOMATIC)
+    search_parameters.local_search_metaheuristic = (
+        routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH)
+    search_parameters.time_limit.seconds = 50
+
     # Solve the problem.
     assignment = routing.SolveWithParameters(search_parameters)
+    # print("Solver status: ", assignment.status())
     # Print solution on console.
     if assignment:
         print_solution_simple(data, manager, routing, assignment, all_riders, K)
@@ -221,9 +225,9 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
             walk_rider = rider
 
     ordered_riders = []
+    ordered_riders.append(car_rider)
     ordered_riders.append(walk_rider)
     ordered_riders.append(bike_rider)
-    ordered_riders.append(car_rider)
 
     for rider in ordered_riders:
         num_vehicles += rider.available_number
