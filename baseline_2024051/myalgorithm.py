@@ -221,9 +221,9 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
             walk_rider = rider
 
     ordered_riders = []
-    ordered_riders.append(car_rider)
-    ordered_riders.append(bike_rider)
     ordered_riders.append(walk_rider)
+    ordered_riders.append(bike_rider)
+    ordered_riders.append(car_rider)
 
     for rider in ordered_riders:
         num_vehicles += rider.available_number
