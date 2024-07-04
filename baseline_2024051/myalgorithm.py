@@ -384,7 +384,7 @@ def print_solution_simple(data, manager, routing, solution, all_riders, K):
                 route_cost = walk_rider.calculate_cost(route_distance)
             plan_output += f"Cost of the route: {route_cost}\n"
 
-            print(plan_output)
+            # print(plan_output)
 
             total_cost += route_cost
 
