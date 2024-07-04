@@ -31,6 +31,12 @@ def main():
         all_solution[file_name] = checked_solution
         print(checked_solution)
 
+    compare_solutions(all_solution)
+
+    # write_solutions(all_solution)
+
+
+def compare_solutions(all_solution):
     with open('all_solution.json', 'r') as f:
         prev_solutions = json.load(f)
         for key, prev_solution in prev_solutions.items():
@@ -48,10 +54,6 @@ def main():
                     print(f'    {moe} Cost Decreased! prev: {prev_cost}, curr: {curr_cost}')
                 else:
                     print(f'    {moe} Cost Increased! prev: {prev_cost}, curr: {curr_cost}')
-
-
-    # write_solutions(all_solution)
-
 
 
 def write_solutions(all_solution):
