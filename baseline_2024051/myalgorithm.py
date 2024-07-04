@@ -165,7 +165,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     # Setting first solution heuristic.
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.first_solution_strategy = (
-        routing_enums_pb2.FirstSolutionStrategy.AUTOMATIC)
+        routing_enums_pb2.FirstSolutionStrategy.LOCAL_CHEAPEST_INSERTION)
     search_parameters.local_search_metaheuristic = (
         routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH)
     search_parameters.time_limit.seconds = 50
