@@ -7,7 +7,7 @@ BIG_PENALTY_VALUE = 999999
 
 
 def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
-    print(f'K : {K}')
+    # print(f'K : {K}')
 
     data = make_input_data(K, dist_mat, all_orders, all_riders)
 
@@ -166,7 +166,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.first_solution_strategy = (
         routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION)
-    search_parameters.time_limit.seconds = 50
+    search_parameters.time_limit.seconds = 30
     # Solve the problem.
     assignment = routing.SolveWithParameters(search_parameters)
     # Print solution on console.
@@ -235,9 +235,6 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
         time_matrix = np.zeros((2 * K + 1, 2 * K + 1))
         for row_index in range(0, 2 * K + 1):
             for column_index in range(0, 2 * K + 1):
-                if row_index == 45 and column_index == 16:
-                    t = 1
-
                 distance = data["distance_matrix"][row_index][column_index]
                 if distance == 0:
                     time_matrix[row_index][column_index] = int(math.ceil(distance / rider.speed + rider.service_time))
@@ -349,8 +346,6 @@ def print_solution_simple(data, manager, routing, solution, all_riders, K):
     total_cost = 0
     for vehicle_id in range(data["num_vehicles"]):
         index = routing.Start(vehicle_id)
-        if vehicle_id == 100:
-            t = 1
         plan_output = f"Route for vehicle {vehicle_id}:\n"
         route_time = 0
         route_distance = 0
@@ -402,8 +397,6 @@ def make_solution_bundle(data, manager, routing, solution):
 
     for vehicle_id in range(data["num_vehicles"]):
 
-        if vehicle_id == 1:
-            t = 1
         index = routing.Start(vehicle_id)
         vehicle_type = data["vehicle_type_by_index"][vehicle_id]
 
@@ -413,8 +406,6 @@ def make_solution_bundle(data, manager, routing, solution):
             real_seq = manager.IndexToNode(index)
             if real_seq != 0:
                 if index <= order_size:
-                    if index == 101:
-                        t = 1
                     shop_seq = real_seq - 1
                     shop_seq_arr.append(shop_seq)
                 else:
@@ -423,8 +414,6 @@ def make_solution_bundle(data, manager, routing, solution):
 
             index = solution.Value(routing.NextVar(index))
 
-        if len(shop_seq_arr) != len(dlv_seq_arr):
-            t = 1
 
         if len(shop_seq_arr) > 0:
             solution_bundle = []
