@@ -5,6 +5,7 @@ from util import *
 from myalgorithm import algorithm
 import logging
 import glob
+from datetime import datetime
 import subprocess
 import multiprocessing
 
@@ -24,7 +25,7 @@ def main():
             all_data[key_name] = data
 
     for file_name, input_data in all_data.items():
-        print(f'file name: {file_name}')
+        print(f'file name: {file_name}, start time: {datetime.now().strftime("%H:%M:%S")}')
         # Now you have a list `all_data` containing the data from each JSON file
         checked_solution = solve(input_data)
         all_solution[file_name] = checked_solution
