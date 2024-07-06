@@ -202,7 +202,7 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
 
     data["distance_matrix"] = make_distance_matrix(K, dist_mat)
 
-    data["time_windows"] = make_time_window(all_orders)
+    data["pickups_deliveries"] = make_pickup_delivery(K)
 
     data["demands"] = make_demand(all_orders)
 
@@ -254,7 +254,7 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
             data["time_matrix_walk"] = time_matrix
             data["time_matrix_walk"] = data["time_matrix_walk"].astype(int).tolist()
 
-    data["pickups_deliveries"] = make_pickup_delivery(K, time_matrix)
+    data["time_windows"] = make_time_window(all_orders, data["time_matrix_car"])
 
     data["num_vehicles"] = num_vehicles
     data["vehicle_capacities"] = vehicle_capacity_arr
@@ -296,11 +296,7 @@ def make_distance_matrix(K, dist_mat):
     return tolist
 
 
-def make_pickup_delivery(K, _time_matrix):
-
-
-
-
+def make_pickup_delivery(K):
     np_array = np.zeros((K, 2))
     for order_index in range(K):
         np_array[order_index][0] = int(order_index + 1)
@@ -308,13 +304,19 @@ def make_pickup_delivery(K, _time_matrix):
     return np_array.astype(int).tolist()
 
 
-def make_time_window(all_orders):
+def make_time_window(all_orders, _time_matrix):
     time_window_arr = [(0, BIG_PENALTY_VALUE)]
 
     for order in all_orders:
-        time_window_arr.append((order.ready_time, order.deadline))
+        from_time_matrix_index = order.id + 1
+        to_time_matrix_index = from_time_matrix_index + len(all_orders)
+        duration = _time_matrix[from_time_matrix_index][to_time_matrix_index]
+        order.max_shop_dep = int(order.deadline - duration)
+        order.min_cust_arr = int(order.ready_time + duration)
     for order in all_orders:
-        time_window_arr.append((order.ready_time, order.deadline))
+        time_window_arr.append((order.ready_time, order.max_shop_dep))
+    for order in all_orders:
+        time_window_arr.append((order.min_cust_arr, order.deadline))
 
     return time_window_arr
 
@@ -400,7 +402,6 @@ def make_solution_bundle(data, manager, routing, solution):
                     dlv_seq_arr.append(dlv_seq)
 
             index = solution.Value(routing.NextVar(index))
-
 
         if len(shop_seq_arr) > 0:
             solution_bundle = []
