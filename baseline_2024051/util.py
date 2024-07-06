@@ -28,8 +28,6 @@ class Order:
         self.cook_time = order_info[6]
         self.volume = order_info[7]
         self.deadline = order_info[8]
-        self.max_shop_dep = 0
-        self.min_cust_arr = 0
 
         self.ready_time = self.order_time + self.cook_time
 

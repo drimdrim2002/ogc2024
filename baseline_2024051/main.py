@@ -1,16 +1,15 @@
-import json
+import glob
+import logging
+from datetime import datetime
 
-from util import *
 # from myalgorithm import algorithm
 from myalgorithm import algorithm
-import logging
-import glob
-from datetime import datetime
-import os
+from util import *
+
 # import subprocess
 # import multiprocessing
 
-problem_file = '../problem_sample/TEST_K200_2.json'
+# problem_file = '../problem_sample/TEST_K200_2.json'
 timelimit = 10
 MOE = ['total_cost', 'avg_cost', 'num_drivers', 'total_dist']
 
@@ -35,12 +34,12 @@ def main():
         all_solution[file_name] = checked_solution
         print(checked_solution)
 
-    compare_solutions(all_solution)
+    read_previous_result_and_compare_solutions(all_solution)
 
     # write_solutions(all_solution)
 
 
-def compare_solutions(all_solution):
+def read_previous_result_and_compare_solutions(all_solution):
     with open('all_solution.json', 'r') as f:
         prev_solutions = json.load(f)
         for key, prev_solution in prev_solutions.items():
@@ -51,17 +50,21 @@ def compare_solutions(all_solution):
             print(f'Compare Plan: {key}')
             curr_solution = all_solution[key]
 
-            for moe in MOE:
+            compare_solution(curr_solution, prev_solution)
 
-                prev_cost = int(prev_solution[moe])
-                curr_cost = int(curr_solution[moe])
 
-                if prev_cost == curr_cost:
-                    print(f'    {moe} Cost is the same')
-                elif curr_cost < prev_cost:
-                    print(f'    {moe} Cost Decreased! prev: {prev_cost}, curr: {curr_cost}')
-                else:
-                    print(f'    {moe} Cost Increased! prev: {prev_cost}, curr: {curr_cost}')
+def compare_solution(curr_solution, prev_solution):
+    for moe in MOE:
+
+        prev_cost = int(prev_solution[moe])
+        curr_cost = int(curr_solution[moe])
+
+        if prev_cost == curr_cost:
+            print(f'    {moe} Cost is the same')
+        elif curr_cost < prev_cost:
+            print(f'    {moe} Cost Decreased! prev: {prev_cost}, curr: {curr_cost}')
+        else:
+            print(f'    {moe} Cost Increased! prev: {prev_cost}, curr: {curr_cost}')
 
 
 def write_solutions(all_solution):
@@ -94,7 +97,7 @@ def solve(prob):
                                                       alg_end_time - alg_start_time) > timelimit + 1  # allowing additional 1 second!
     checked_solution['exception'] = exception
     checked_solution['prob_name'] = prob['name']
-    checked_solution['prob_file'] = problem_file
+    # checked_solution['prob_file'] = problem_file
     return checked_solution
 
 
