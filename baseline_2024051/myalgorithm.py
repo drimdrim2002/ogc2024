@@ -348,8 +348,6 @@ def apply_time_penalty(K, all_orders, _time_matrix):
 
             if fail_count >= 2:
                 _time_matrix[from_shop_index][to_shop_index] = BIG_PENALTY_VALUE
-            else:
-                t = 1
 
     combination_results = combinations(K)
     for combination_result in combination_results:

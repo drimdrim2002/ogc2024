@@ -19,8 +19,8 @@ def main():
     all_data = {}
     all_solution = {}
     for filename in glob.glob(f"{folder_path}/*.json"):
-        if filename != "problem_sample\\STAGE1_18.json":
-            continue
+        # if filename != "problem_sample\\STAGE1_18.json":
+        #     continue
         with open(filename, "r") as f:
             data = json.load(f)
             key_name = str(filename.split("\\")[1].split(".json")[0])
@@ -34,9 +34,9 @@ def main():
         all_solution[file_name] = checked_solution
         print(checked_solution)
 
-    read_previous_result_and_compare_solutions(all_solution)
+    # read_previous_result_and_compare_solutions(all_solution)
 
-    # write_solutions(all_solution)
+    write_solutions(all_solution)
 
 
 def read_previous_result_and_compare_solutions(all_solution):
