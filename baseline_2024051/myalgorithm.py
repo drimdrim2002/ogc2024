@@ -157,8 +157,6 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         if location_idx == data["depot"]:
             continue
 
-        if location_idx == 54:
-            t = 1
         index = manager.NodeToIndex(location_idx)
         time_dimension.CumulVar(index).SetRange(time[0], time[1])
 
@@ -205,8 +203,6 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
     data["distance_matrix"] = make_distance_matrix(K, dist_mat)
 
     data["time_windows"] = make_time_window(all_orders)
-
-    data["pickups_deliveries"] = make_pickup_delivery(K)
 
     data["demands"] = make_demand(all_orders)
 
@@ -258,24 +254,7 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
             data["time_matrix_walk"] = time_matrix
             data["time_matrix_walk"] = data["time_matrix_walk"].astype(int).tolist()
 
-    # print("BIKE")
-    # for i in range(K + 1):
-    #     print(data["time_matrix_bike"][i][i + 100])
-    #
-    # print("WALK")
-    # for i in range(K + 1):
-    #     print(data["time_matrix_walk"][i][i + 100])
-    #
-    # print("CAR")
-    # for i in range(K + 1):
-    #     print(data["time_matrix_car"][i][i + 100])
-
-    # for rider in all_riders:
-    #     num_vehicles += rider.available_number
-    #     for _ in range(rider.available_number):
-    #         vehicle_capacity_arr.append(rider.capa)
-    #         data["vehicle_type_by_index"][vehicle_index] = rider.type
-    #         vehicle_index += 1
+    data["pickups_deliveries"] = make_pickup_delivery(K, time_matrix)
 
     data["num_vehicles"] = num_vehicles
     data["vehicle_capacities"] = vehicle_capacity_arr
@@ -317,7 +296,11 @@ def make_distance_matrix(K, dist_mat):
     return tolist
 
 
-def make_pickup_delivery(K):
+def make_pickup_delivery(K, _time_matrix):
+
+
+
+
     np_array = np.zeros((K, 2))
     for order_index in range(K):
         np_array[order_index][0] = int(order_index + 1)
