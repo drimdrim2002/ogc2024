@@ -6,16 +6,17 @@ from myalgorithm import algorithm
 import logging
 import glob
 from datetime import datetime
-import subprocess
-import multiprocessing
+import os
+# import subprocess
+# import multiprocessing
 
-problem_file = '../alg_test_problems_20240429/TEST_K200_2.json'
+problem_file = '../problem_sample/TEST_K200_2.json'
 timelimit = 10
 MOE = ['total_cost', 'avg_cost', 'num_drivers', 'total_dist']
 
 
 def main():
-    folder_path = "../alg_test_problems_20240429"
+    folder_path = "problem_sample"
     all_data = {}
     all_solution = {}
     for filename in glob.glob(f"{folder_path}/*.json"):
@@ -31,9 +32,9 @@ def main():
         all_solution[file_name] = checked_solution
         print(checked_solution)
 
-    compare_solutions(all_solution)
+    # compare_solutions(all_solution)
 
-    # write_solutions(all_solution)
+    write_solutions(all_solution)
 
 
 def compare_solutions(all_solution):
