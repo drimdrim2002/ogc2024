@@ -20,10 +20,13 @@ def main():
     all_data = {}
     all_solution = {}
     for filename in glob.glob(f"{folder_path}/*.json"):
+        if filename != "problem_sample\\STAGE1_18.json":
+            continue
         with open(filename, "r") as f:
             data = json.load(f)
             key_name = str(filename.split("\\")[1].split(".json")[0])
             all_data[key_name] = data
+
 
     for file_name, input_data in all_data.items():
         print(f'file name: {file_name}, start time: {datetime.now().strftime("%H:%M:%S")}')
@@ -32,15 +35,19 @@ def main():
         all_solution[file_name] = checked_solution
         print(checked_solution)
 
-    # compare_solutions(all_solution)
+    compare_solutions(all_solution)
 
-    write_solutions(all_solution)
+    # write_solutions(all_solution)
 
 
 def compare_solutions(all_solution):
     with open('all_solution.json', 'r') as f:
         prev_solutions = json.load(f)
         for key, prev_solution in prev_solutions.items():
+
+            if key not in all_solution:
+                continue
+
             print(f'Compare Plan: {key}')
             curr_solution = all_solution[key]
 
