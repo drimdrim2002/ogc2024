@@ -7,7 +7,7 @@ import math
 from datetime import datetime
 
 BIG_PENALTY_VALUE = 99999999
-SOLVING_TIME = 10
+SOLVING_TIME = 50
 
 
 def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
@@ -228,6 +228,7 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
     data["depot"] = 0  # dummy depot
 
     data["distance_matrix"] = make_distance_matrix(K, dist_mat)
+    # data["distance_matrix"] = make_distance_matrix(K, dist_mat)
 
     data["pickups_deliveries"] = make_pickup_delivery(K)
 
@@ -378,6 +379,43 @@ def make_demand(all_orders):
     return demand_array
 
 
+def make_distance_matrix_new(K, dist_mat):
+    distance_matrix_size = 2 * K + 1
+    new_dist_matrix = np.zeros((distance_matrix_size, distance_matrix_size))
+
+    for from_order_id in range(distance_matrix_size - 1):
+        from_loc_id = from_order_id + 1
+        for to_order_id in range(distance_matrix_size - 1):
+            to_loc_id = to_order_id + 1
+            distance = dist_mat[from_order_id][to_order_id]
+
+            # set long distance from customer to shop
+            if K < from_loc_id < distance_matrix_size and 0 < to_loc_id < K + 1:
+                distance = BIG_PENALTY_VALUE
+
+
+
+            new_dist_matrix[from_loc_id][to_loc_id] = distance
+
+    # set long distance from depot to customer
+    for customer_index in range(K + 1, distance_matrix_size):
+        new_dist_matrix[0][customer_index] = BIG_PENALTY_VALUE
+
+    # set long distance from customer to shop
+    for customer_index in range(K + 1, distance_matrix_size):
+        for shop_index in range(1, K + 1):
+            new_dist_matrix[customer_index][shop_index] = BIG_PENALTY_VALUE
+
+    # set long distance from shop to customer without pickup
+    for sho_index in range(1, K + 1):
+        for customer_index in range(K + 1, distance_matrix_size):
+            if sho_index + K != customer_index:
+                new_dist_matrix[customer_index][shop_index] = BIG_PENALTY_VALUE
+
+    tolist = new_dist_matrix.astype(int).tolist()
+    return tolist
+
+
 def make_distance_matrix(K, dist_mat):
     new_dist_matrix = np.zeros((2 * K + 1, 2 * K + 1))
     for row_index in range(2 * K):
@@ -394,10 +432,10 @@ def make_distance_matrix(K, dist_mat):
             new_dist_matrix[customer_index][shop_index] = BIG_PENALTY_VALUE
 
     # set long distance from shop to customer without pickup
-    for sho_index in range(1, K + 1):
-        for customer_index in range(K + 1, 2 * K + 1):
-            if sho_index + K != customer_index:
-                new_dist_matrix[customer_index][shop_index] = BIG_PENALTY_VALUE
+    # for sho_index in range(1, K + 1):
+    #     for customer_index in range(K + 1, 2 * K + 1):
+    #         if sho_index + K != customer_index:
+    #             new_dist_matrix[customer_index][shop_index] = BIG_PENALTY_VALUE
 
     tolist = new_dist_matrix.astype(int).tolist()
     return tolist

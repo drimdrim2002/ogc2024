@@ -22,8 +22,8 @@ def main():
     all_data = {}
     all_solution = {}
     for filename in glob.glob(f"{folder_path}/*.json"):
-        # if filename not in test_file:
-        #     continue
+        if filename not in test_file:
+            continue
         with open(filename, "r") as f:
             data = json.load(f)
             key_name = str(filename.split("\\")[1].split(".json")[0])
