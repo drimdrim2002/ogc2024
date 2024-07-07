@@ -31,6 +31,13 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
     routing = pywrapcp.RoutingModel(manager)
 
+    for excluded_edge in data["excluded_edges"]:
+        a = manager.NodeToIndex(excluded_edge[0])
+        b = manager.NodeToIndex(excluded_edge[1])
+        routing.NextVar(a).RemoveValue(b)
+
+
+
     def demand_callback(from_index):
         """Returns the demand of the node."""
         # Convert from routing variable Index to demands NodeIndex.
@@ -214,23 +221,15 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
 
 def make_input_data(K, dist_mat, all_orders, all_riders):
-    data = {}
+    data = {"depot": 0, "distance_matrix": make_distance_matrix(K, dist_mat),
+            "pickups_deliveries": make_pickup_delivery(K), "demands": make_demand(all_orders),
+            "vehicle_type_by_index": {}}
 
-    data["depot"] = 0  # dummy depot
-
-    data["distance_matrix"] = make_distance_matrix(K, dist_mat)
     # data["distance_matrix"] = make_distance_matrix(K, dist_mat)
 
-    data["pickups_deliveries"] = make_pickup_delivery(K)
-
-    data["demands"] = make_demand(all_orders)
-
-    data["vehicle_type_by_index"] = {}
     vehicle_capacity_arr = []
     num_vehicles = 0
-
     vehicle_index = 0
-
     rider_dict = {}
     for rider in all_riders:
         if rider.type == 'CAR':
@@ -263,17 +262,13 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
                     time_matrix[row_index][column_index] = int(math.ceil(distance / rider.speed + rider.service_time))
 
         if rider.type == 'CAR':
-            data["time_matrix_car"] = time_matrix
-            data["time_matrix_car"] = data["time_matrix_car"].astype(int).tolist()
+            data["time_matrix_car"] = time_matrix.astype(int).tolist()
         elif rider.type == 'BIKE':
-            data["time_matrix_bike"] = time_matrix
-            data["time_matrix_bike"] = data["time_matrix_bike"].astype(int).tolist()
+            data["time_matrix_bike"] = time_matrix.astype(int).tolist()
         else:
-            data["time_matrix_walk"] = time_matrix
-            data["time_matrix_walk"] = data["time_matrix_walk"].astype(int).tolist()
+            data["time_matrix_walk"] = time_matrix.astype(int).tolist()
 
     data["time_windows"] = make_time_window(all_orders)
-
     data["num_vehicles"] = num_vehicles
     data["vehicle_capacities"] = vehicle_capacity_arr
 
