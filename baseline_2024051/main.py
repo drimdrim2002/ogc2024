@@ -13,8 +13,8 @@ from util import *
 timelimit = 10
 MOE = ['total_cost', 'avg_cost', 'num_drivers', 'total_dist']
 
-test_file = ["problem_sample\\STAGE1_17.json", "problem_sample\\STAGE1_18.json", "problem_sample\\TEST_K200_1.json",
-             "problem_sample\\TEST_K200_2.json"]
+# test_file = ["problem_sample\\STAGE1_17.json", "problem_sample\\STAGE1_18.json", "problem_sample\\TEST_K200_1.json",
+#              "problem_sample\\TEST_K200_2.json"]
 
 
 def main():
@@ -22,7 +22,7 @@ def main():
     all_data = {}
     all_solution = {}
     for filename in glob.glob(f"{folder_path}/*.json"):
-        if filename not in test_file:
+        if not filename.startswith("problem_sample\\TEST"):
             continue
         with open(filename, "r") as f:
             data = json.load(f)
