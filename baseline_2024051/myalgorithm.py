@@ -7,12 +7,17 @@ import math
 from datetime import datetime
 
 BIG_PENALTY_VALUE = 99999999
+SOLVING_TIME = 10
 
 
 def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     # print(f'K : {K}')
 
+    before_make_input_data_time = datetime.now()
     data = make_input_data(K, dist_mat, all_orders, all_riders)
+    after_make_input_data_time = datetime.now()
+    make_input_data_time = (after_make_input_data_time - before_make_input_data_time).seconds
+    print(f'make input data time (sec): ({make_input_data_time})')
 
     # Create the routing index manager.
     # [START index_manager]
@@ -186,7 +191,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         routing_enums_pb2.FirstSolutionStrategy.LOCAL_CHEAPEST_INSERTION)
     search_parameters.local_search_metaheuristic = (
         routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH)
-    search_parameters.time_limit.seconds = 50
+    search_parameters.time_limit.seconds = SOLVING_TIME
 
     print(f'solve start time: {datetime.now().strftime("%H:%M:%S")}')
 

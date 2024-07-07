@@ -13,30 +13,34 @@ from util import *
 timelimit = 10
 MOE = ['total_cost', 'avg_cost', 'num_drivers', 'total_dist']
 
+test_file = ["problem_sample\\STAGE1_17.json", "problem_sample\\STAGE1_18.json", "problem_sample\\TEST_K200_1.json",
+             "problem_sample\\TEST_K200_2.json"]
+
 
 def main():
     folder_path = "problem_sample"
     all_data = {}
     all_solution = {}
     for filename in glob.glob(f"{folder_path}/*.json"):
-        # if filename != "problem_sample\\STAGE1_18.json":
+        # if filename not in test_file:
         #     continue
         with open(filename, "r") as f:
             data = json.load(f)
             key_name = str(filename.split("\\")[1].split(".json")[0])
             all_data[key_name] = data
 
-
     for file_name, input_data in all_data.items():
         print(f'file name: {file_name}, start time: {datetime.now().strftime("%H:%M:%S")}')
         # Now you have a list `all_data` containing the data from each JSON file
         checked_solution = solve(input_data)
+        if checked_solution['feasible'] is False:
+            raise ValueError("Infeasible Error")
         all_solution[file_name] = checked_solution
         print(checked_solution)
 
-    # read_previous_result_and_compare_solutions(all_solution)
+    read_previous_result_and_compare_solutions(all_solution)
 
-    write_solutions(all_solution)
+    # write_solutions(all_solution)
 
 
 def read_previous_result_and_compare_solutions(all_solution):
