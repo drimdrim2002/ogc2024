@@ -3,12 +3,10 @@ from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 import math
 from datetime import datetime
-import myutil
 
-BIG_PENALTY_VALUE = 99999999
+BIG_PENALTY_VALUE = int(999999)
 MARGIN_TIME = 5
 MAX_SOLVING_TIME = 60
-
 
 def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     # print(f'K : {K}')
@@ -29,20 +27,14 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
     routing = pywrapcp.RoutingModel(manager)
 
-    for excluded_edge in data["excluded_edges"]:
-        a = manager.NodeToIndex(excluded_edge[0])
-        b = manager.NodeToIndex(excluded_edge[1])
-        routing.NextVar(a).RemoveValue(b)
-
-
-
     def demand_callback(from_index):
         """Returns the demand of the node."""
         # Convert from routing variable Index to demands NodeIndex.
         from_node = manager.IndexToNode(from_index)
         return data['demands'][from_node]
 
-    demand_callback_index = routing.RegisterUnaryTransitCallback(demand_callback)
+    demand_callback_index = routing.RegisterUnaryTransitCallback(
+        demand_callback)
     routing.AddDimensionWithVehicleCapacity(
         demand_callback_index,
         0,  # null capacity slack
@@ -71,8 +63,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         # Convert from routing variable Index to time matrix NodeIndex.
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
-        duration = data["time_matrix_car"][from_node][to_node]
-        return duration
+        return data["time_matrix_car"][from_node][to_node]
 
     transit_callback_index_car = routing.RegisterTransitCallback(time_callback_car)
 
@@ -97,11 +88,11 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     def cost_callback_car(from_index, to_index):
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
-        duration = data["time_matrix_car"][from_node][to_node]
-        if duration == BIG_PENALTY_VALUE:
+
+        duration_car = data["time_matrix_car"][from_node][to_node]
+        if duration_car == BIG_PENALTY_VALUE:
             return BIG_PENALTY_VALUE
         distance = data["distance_matrix"][from_node][to_node]
-
         car_var_cost = rider_cost_info['CAR']['var_cost']
 
         car_fixed_cost = rider_cost_info['CAR']['fixed_cost'] if from_node == 0 else 0
@@ -113,8 +104,8 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     def cost_callback_bike(from_index, to_index):
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
-        duration = data["time_matrix_bike"][from_node][to_node]
-        if duration == BIG_PENALTY_VALUE:
+        duration_bike = data["time_matrix_bike"][from_node][to_node]
+        if duration_bike == BIG_PENALTY_VALUE:
             return BIG_PENALTY_VALUE
         distance = data["distance_matrix"][from_node][to_node]
         bike_fixed_cost = rider_cost_info['BIKE']['fixed_cost'] if from_node == 0 else 0
@@ -128,10 +119,9 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     def cost_callback_walk(from_index, to_index):
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
-        duration = data["time_matrix_walk"][from_node][to_node]
-        if duration == BIG_PENALTY_VALUE:
+        duration_walk = data["time_matrix_walk"][from_node][to_node]
+        if duration_walk == BIG_PENALTY_VALUE:
             return BIG_PENALTY_VALUE
-
         distance = data["distance_matrix"][from_node][to_node]
         walk_fixed_cost = rider_cost_info['WALK']['fixed_cost'] if from_node == 0 else 0
         walk_var_cost = rider_cost_info['WALK']['var_cost']
@@ -192,8 +182,6 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH)
     search_parameters.time_limit.seconds = solving_time
 
-    print(f'solve start time: {datetime.now().strftime("%H:%M:%S")}')
-
     # Solve the problem.
     assignment = routing.SolveWithParameters(search_parameters)
     # print("Solver status: ", assignment.status())
@@ -219,16 +207,24 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
 
 def make_input_data(K, dist_mat, all_orders, all_riders):
-    data = {"depot": 0, "distance_matrix": make_distance_matrix(K, dist_mat),
-            "pickups_deliveries": make_pickup_delivery(K), "demands": make_demand(all_orders),
-            "vehicle_type_by_index": {}}
+    data = {}
 
-    # data["distance_matrix"] = make_distance_matrix(K, dist_mat)
+    data["depot"] = 0  # dummy depot
 
+    data["distance_matrix"] = make_distance_matrix(K, dist_mat)
+
+    data["time_windows"] = make_time_window(all_orders)
+
+    data["pickups_deliveries"] = make_pickup_delivery(K)
+
+    data["demands"] = make_demand(all_orders)
+
+    data["vehicle_type_by_index"] = {}
     vehicle_capacity_arr = []
     num_vehicles = 0
+
     vehicle_index = 0
-    rider_dict = {}
+
     for rider in all_riders:
         if rider.type == 'CAR':
             car_rider = rider
@@ -236,11 +232,13 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
             bike_rider = rider
         else:
             walk_rider = rider
-        rider_dict[rider.type] = rider
 
-    ordered_riders_arr = [car_rider, bike_rider, walk_rider]
+    ordered_riders = []
+    ordered_riders.append(car_rider)
+    ordered_riders.append(walk_rider)
+    ordered_riders.append(bike_rider)
 
-    for rider in ordered_riders_arr:
+    for rider in ordered_riders:
         num_vehicles += rider.available_number
         for _ in range(rider.available_number):
             vehicle_capacity_arr.append(rider.capa)
@@ -248,11 +246,10 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
             vehicle_index += 1
 
         time_matrix = np.zeros((2 * K + 1, 2 * K + 1))
-
         for row_index in range(0, 2 * K + 1):
             for column_index in range(0, 2 * K + 1):
                 distance = data["distance_matrix"][row_index][column_index]
-                if row_index == 0 or row_index == column_index or column_index == 0:
+                if row_index == column_index or row_index == 0 or column_index == 0:
                     time_matrix[row_index][column_index] = 0
                 elif distance == BIG_PENALTY_VALUE:
                     time_matrix[row_index][column_index] = int(BIG_PENALTY_VALUE)
@@ -260,117 +257,39 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
                     time_matrix[row_index][column_index] = int(math.ceil(distance / rider.speed + rider.service_time))
 
         if rider.type == 'CAR':
-            data["time_matrix_car"] = time_matrix.astype(int).tolist()
+            data["time_matrix_car"] = time_matrix
+            data["time_matrix_car"] = data["time_matrix_car"].astype(int).tolist()
         elif rider.type == 'BIKE':
-            data["time_matrix_bike"] = time_matrix.astype(int).tolist()
-        else:
-            data["time_matrix_walk"] = time_matrix.astype(int).tolist()
+            data["time_matrix_bike"] = time_matrix
+            data["time_matrix_bike"] = data["time_matrix_bike"].astype(int).tolist()
 
-    data["time_windows"] = make_time_window(all_orders)
+        else:
+            data["time_matrix_walk"] = time_matrix
+            data["time_matrix_walk"] = data["time_matrix_walk"].astype(int).tolist()
+
+    # print("BIKE")
+    # for i in range(K + 1):
+    #     print(data["time_matrix_bike"][i][i + 100])
+    #
+    # print("WALK")
+    # for i in range(K + 1):
+    #     print(data["time_matrix_walk"][i][i + 100])
+    #
+    # print("CAR")
+    # for i in range(K + 1):
+    #     print(data["time_matrix_car"][i][i + 100])
+
+    # for rider in all_riders:
+    #     num_vehicles += rider.available_number
+    #     for _ in range(rider.available_number):
+    #         vehicle_capacity_arr.append(rider.capa)
+    #         data["vehicle_type_by_index"][vehicle_index] = rider.type
+    #         vehicle_index += 1
+
     data["num_vehicles"] = num_vehicles
     data["vehicle_capacities"] = vehicle_capacity_arr
 
-    data["excluded_edges"] = []
-    apply_time_penalty_with_util(K, all_orders, rider_dict, data)
-
     return data
-
-
-def get_combinations(k):
-    if k < 2:
-        raise ValueError("k는 2보다 커야 합니다.")
-    combs = []
-    for i in range(0, k):
-        for j in range(i, k):
-            combs.append((i, j))
-    return combs
-
-
-def apply_time_penalty_with_util(K, _all_orders, _rider_dict, _data):
-    rider_type_car = 'CAR'
-    rider_type_bike = 'BIKE'
-
-    car_rider = _rider_dict[rider_type_car]
-    bike_rider = _rider_dict[rider_type_bike]
-
-    all_bundles = {}
-
-    # exclude walk rider
-    exclude_walk_rider(K, _all_orders, _data, _rider_dict, all_bundles)
-
-    exclude_riders(K, _all_orders, _data, all_bundles, bike_rider, car_rider)
-
-
-def exclude_riders(K, _all_orders, _data, all_bundles, bike_rider, car_rider):
-    time_matrix_car = _data["time_matrix_car"]
-    time_matrix_bike = _data["time_matrix_bike"]
-    time_matrix_walk = _data["time_matrix_walk"]
-
-    for from_order in _all_orders:
-        from_shop_loc_id = from_order.id + 1
-        from_dlv_loc_id = from_shop_loc_id + K
-        for to_order in _all_orders:
-            if from_order.id == to_order.id:
-                continue
-            to_shop_loc_id = to_order.id + 1
-            to_dlv_loc_id = to_shop_loc_id + K
-
-            bundle_test_rider = [car_rider, bike_rider]
-            fail_count = 0
-            for rider in bundle_test_rider:
-                all_bundles_by_type = all_bundles[rider.type]
-                _timx_matrix = time_matrix_car if rider.type == 'CAR' else time_matrix_bike
-
-                from_bundle = all_bundles_by_type[from_order.id]
-                to_bundle = all_bundles_by_type[to_order.id]
-
-                bundle_yn = myutil.try_merging_bundles_with_rider(_all_orders, from_bundle, to_bundle, rider)
-                if bundle_yn is False:
-                    _timx_matrix[from_shop_loc_id][to_shop_loc_id] = BIG_PENALTY_VALUE
-                    _timx_matrix[from_shop_loc_id][to_dlv_loc_id] = BIG_PENALTY_VALUE
-
-                    _timx_matrix[to_shop_loc_id][from_shop_loc_id] = BIG_PENALTY_VALUE
-                    _timx_matrix[to_shop_loc_id][from_dlv_loc_id] = BIG_PENALTY_VALUE
-
-                    _timx_matrix[from_dlv_loc_id][to_dlv_loc_id] = BIG_PENALTY_VALUE
-                    _timx_matrix[to_dlv_loc_id][from_dlv_loc_id] = BIG_PENALTY_VALUE
-
-                    time_matrix_walk[from_shop_loc_id][to_shop_loc_id] = BIG_PENALTY_VALUE
-                    time_matrix_walk[from_shop_loc_id][to_dlv_loc_id] = BIG_PENALTY_VALUE
-
-                    time_matrix_walk[to_shop_loc_id][from_shop_loc_id] = BIG_PENALTY_VALUE
-                    time_matrix_walk[to_shop_loc_id][from_dlv_loc_id] = BIG_PENALTY_VALUE
-
-                    time_matrix_walk[from_dlv_loc_id][to_dlv_loc_id] = BIG_PENALTY_VALUE
-                    time_matrix_walk[to_dlv_loc_id][from_dlv_loc_id] = BIG_PENALTY_VALUE
-
-                    fail_count += 1
-
-            if fail_count == 2:
-                _data["excluded_edges"].append((from_shop_loc_id, to_shop_loc_id))
-                _data["excluded_edges"].append((from_shop_loc_id, to_dlv_loc_id))
-                _data["excluded_edges"].append((to_shop_loc_id, from_shop_loc_id))
-                _data["excluded_edges"].append((to_shop_loc_id, from_dlv_loc_id))
-                _data["excluded_edges"].append((from_dlv_loc_id, to_dlv_loc_id))
-                _data["excluded_edges"].append((to_dlv_loc_id, from_dlv_loc_id))
-
-
-def exclude_walk_rider(K, _all_orders, _data, _rider_dict, all_bundles):
-    time_matrix_walk = _data["time_matrix_walk"]
-    for rider in _rider_dict.values():
-        all_bundles[rider.type] = {}
-        for order in _all_orders:
-            shop_loc_id = order.id + 1
-            dlv_loc_id = order.id + K + 1
-            new_bundle = myutil.Bundle(_all_orders, rider, [order.id]
-                                       , [order.id], order.volume
-                                       , _data["distance_matrix"][shop_loc_id][dlv_loc_id])
-            if rider.type == 'WALK':
-                bundle_yn = myutil.try_single_bundle_with_rider(_all_orders, new_bundle, rider)
-                if bundle_yn is False:
-                    time_matrix_walk[0][shop_loc_id] = BIG_PENALTY_VALUE
-                    time_matrix_walk[shop_loc_id][dlv_loc_id] = BIG_PENALTY_VALUE
-            all_bundles[rider.type][order.id] = new_bundle
 
 
 def make_demand(all_orders):
@@ -383,34 +302,28 @@ def make_demand(all_orders):
 
 
 def make_distance_matrix(K, dist_mat):
-    distance_matrix_size = 2 * K + 1
-    new_dist_matrix = np.zeros((distance_matrix_size, distance_matrix_size))
-
-    for from_order_id in range(distance_matrix_size - 1):
-        from_loc_id = from_order_id + 1
-        for to_order_id in range(distance_matrix_size - 1):
-            to_loc_id = to_order_id + 1
-            distance = dist_mat[from_order_id][to_order_id]
-
-            # set long distance from customer to shop
-            if location_is_delivery(K, distance_matrix_size, from_loc_id) and location_is_shop(K, to_loc_id):
-                distance = BIG_PENALTY_VALUE
-            new_dist_matrix[from_loc_id][to_loc_id] = distance
+    new_dist_matrix = np.zeros((2 * K + 1, 2 * K + 1))
+    for row_index in range(2 * K):
+        for column_index in range(2 * K):
+            new_dist_matrix[row_index + 1][column_index + 1] = dist_mat[row_index][column_index]
 
     # set long distance from depot to customer
-    for customer_index in range(K + 1, distance_matrix_size):
+    for customer_index in range(K + 1, 2 * K + 1):
         new_dist_matrix[0][customer_index] = BIG_PENALTY_VALUE
+
+    # set long distance from customer to shop
+    for customer_index in range(K + 1, 2 * K + 1):
+        for shop_index in range(1, K + 1):
+            new_dist_matrix[customer_index][shop_index] = BIG_PENALTY_VALUE
+
+    # set long distance from shop to customer without pickup
+    # for sho_index in range(1, K + 1):
+    #     for customer_index in range(K + 1, 2 * K + 1):
+    #         if sho_index + K != customer_index:
+    #             new_dist_matrix[customer_index][shop_index] = BIG_PENALTY_VALUE
 
     tolist = new_dist_matrix.astype(int).tolist()
     return tolist
-
-
-def location_is_shop(K, to_loc_id):
-    return 0 < to_loc_id < K + 1
-
-
-def location_is_delivery(K, distance_matrix_size, from_loc_id):
-    return K < from_loc_id < distance_matrix_size
 
 
 def make_pickup_delivery(K):
@@ -422,10 +335,7 @@ def make_pickup_delivery(K):
 
 
 def make_time_window(all_orders):
-    deatline_arr = []
-    for order in all_orders:
-        deatline_arr.append(order.deadline)
-    time_window_arr = [(0, max(deatline_arr) + 1)]
+    time_window_arr = [(0, BIG_PENALTY_VALUE)]
 
     for order in all_orders:
         time_window_arr.append((order.ready_time, order.deadline))
