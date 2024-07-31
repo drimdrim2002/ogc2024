@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 
 
 # Change history
+# 2024/7/20 - Fixed a bug in solution_check() to make sure pickups == deliveries
 # 2024/7/1 - Update total_dist for a new bundle as well in try_bundle_rider_changing()
 # 2024/6/21 - Fixed a comment in Order.__init__()
 # 2024/6/16 - Fixed a bug that does not set the bundle routes in try_bundle_rider_changing()
@@ -53,8 +54,7 @@ class Rider:
     # 주어진 거리에 대한 배달원 비용 계산
     # = 배달원별 고정비 + 이동거리로 계산된 변동비
     def calculate_cost(self, dist):
-        return self.fixed_cost + dist / 100.0 * self.var_cost
-
+        return int(self.fixed_cost) + int(dist / 100.0 * self.var_cost)
 
 # 묶음 주문 정보
 class Bundle:
@@ -289,6 +289,11 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
                 if not isinstance(k, int) or k < 0 or k >= K:
                     infeasibility = f'Delivery sequence has invalid order number: {k}'
                     break
+
+            # Pickup == delivery check
+            if set(shop_seq) != set(dlv_seq):
+                infeasibility = f'Sets of pickups and deliveries must be identical: {set(shop_seq)} != {set(dlv_seq)}'
+                break
 
             # Volume check
             total_volume = get_total_volume(all_orders, shop_seq)
