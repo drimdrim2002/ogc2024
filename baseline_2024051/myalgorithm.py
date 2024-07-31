@@ -7,7 +7,8 @@ import math
 from datetime import datetime
 
 BIG_PENALTY_VALUE = 99999999
-SOLVING_TIME = 50
+MARGIN_TIME = 5
+MAX_SOLVING_TIME = 60
 
 
 def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
@@ -18,6 +19,8 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     after_make_input_data_time = datetime.now()
     make_input_data_time = (after_make_input_data_time - before_make_input_data_time).seconds
     print(f'make input data time (sec): ({make_input_data_time})')
+
+    solving_time = MAX_SOLVING_TIME - MARGIN_TIME - make_input_data_time
 
     # Create the routing index manager.
     # [START index_manager]
@@ -41,10 +44,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         True,  # start cumul to zero
         'Capacity')
 
-    rider_cost_info = {}
-    rider_cost_info['CAR'] = {}
-    rider_cost_info['BIKE'] = {}
-    rider_cost_info['WALK'] = {}
+    rider_cost_info = {'CAR': {}, 'BIKE': {}, 'WALK': {}}
 
     for rider in all_riders:
         fixed_cost = rider.fixed_cost
@@ -191,7 +191,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         routing_enums_pb2.FirstSolutionStrategy.LOCAL_CHEAPEST_INSERTION)
     search_parameters.local_search_metaheuristic = (
         routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH)
-    search_parameters.time_limit.seconds = SOLVING_TIME
+    search_parameters.time_limit.seconds = solving_time
 
     print(f'solve start time: {datetime.now().strftime("%H:%M:%S")}')
 
@@ -203,10 +203,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         print_solution_simple(data, manager, routing, assignment, all_riders, K)
         solution_bundle_arr = make_solution_bundle(data, manager, routing, assignment)
 
-        solution_bundle_by_type = {}
-        solution_bundle_by_type['CAR'] = []
-        solution_bundle_by_type['BIKE'] = []
-        solution_bundle_by_type['WALK'] = []
+        solution_bundle_by_type = {'CAR': [], 'BIKE': [], 'WALK': []}
         for solution_bundle in solution_bundle_arr:
             vehicle_type = solution_bundle[0]
             shop_seq = solution_bundle[1]
