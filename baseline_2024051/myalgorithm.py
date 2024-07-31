@@ -285,14 +285,6 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
     apply_time_penalty(K, all_orders, data["time_matrix_bike"])
     apply_time_penalty(K, all_orders, data["time_matrix_walk"])
 
-    for row_index in range(1, 2 * K + 1):
-        for column_index in range(1, 2 * K + 1):
-            if row_index == column_index:
-                continue
-            duration = data["time_matrix_car"][row_index][column_index]
-            if duration == int(BIG_PENALTY_VALUE):
-                continue
-
     return data
 
 
@@ -356,8 +348,6 @@ def apply_time_penalty(K, all_orders, _time_matrix):
 
             if fail_count >= 2:
                 _time_matrix[from_shop_index][to_shop_index] = BIG_PENALTY_VALUE
-            else:
-                t = 1
 
     combination_results = combinations(K)
     for combination_result in combination_results:
