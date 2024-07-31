@@ -50,20 +50,6 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         True,  # start cumul to zero
         'Capacity')
 
-    rider_cost_info = {'CAR': {}, 'BIKE': {}, 'WALK': {}}
-
-    for rider in all_riders:
-        fixed_cost = rider.fixed_cost
-        var_cost = rider.var_cost
-        if rider.type == 'CAR':
-            rider_cost_info['CAR']['fixed_cost'] = fixed_cost
-            rider_cost_info['CAR']['var_cost'] = var_cost
-        elif rider.type == 'BIKE':
-            rider_cost_info['BIKE']['fixed_cost'] = fixed_cost
-            rider_cost_info['BIKE']['var_cost'] = var_cost
-        else:
-            rider_cost_info['WALK']['fixed_cost'] = fixed_cost
-            rider_cost_info['WALK']['var_cost'] = var_cost
 
     # Create and register a transit callback.
     def time_callback_car(from_index, to_index):
@@ -94,6 +80,20 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
     transit_callback_index_walk = routing.RegisterTransitCallback(time_callback_walk)
 
+    rider_cost_info = {'CAR': {}, 'BIKE': {}, 'WALK': {}}
+
+    for rider in all_riders:
+        fixed_cost = rider.fixed_cost
+        var_cost = rider.var_cost
+        if rider.type == 'CAR':
+            rider_cost_info['CAR']['fixed_cost'] = fixed_cost
+            rider_cost_info['CAR']['var_cost'] = var_cost
+        elif rider.type == 'BIKE':
+            rider_cost_info['BIKE']['fixed_cost'] = fixed_cost
+            rider_cost_info['BIKE']['var_cost'] = var_cost
+        else:
+            rider_cost_info['WALK']['fixed_cost'] = fixed_cost
+            rider_cost_info['WALK']['var_cost'] = var_cost
     def cost_callback_car(from_index, to_index):
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
@@ -161,7 +161,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     routing.AddDimensionWithVehicleTransits(
         transit_callback_arr,
         0,  # allow waiting time
-        int(BIG_PENALTY_VALUE / 10),  # maximum time per vehicle todo planning horizon을 확인해야 함
+        int(BIG_PENALTY_VALUE / 1000),  # maximum time per vehicle todo planning horizon을 확인해야 함
         False,  # Don't force start cumul to zero.
         time,
     )
@@ -289,14 +289,15 @@ def get_combinations(k):
 def apply_time_penalty_with_util(K, _all_orders, _rider_dict, _data):
     rider_type_car = 'CAR'
     rider_type_bike = 'BIKE'
+    rider_type_walk = 'WALK'
 
     car_rider = _rider_dict[rider_type_car]
     bike_rider = _rider_dict[rider_type_bike]
-
+    walk_rider = _rider_dict[rider_type_walk]
     all_bundles = {}
 
     # exclude walk rider
-    exclude_walk_rider(K, _all_orders, _data, _rider_dict, all_bundles)
+    make_all_bundles_and_exclude_walk_matrix(K, _all_orders, _data, _rider_dict, all_bundles)
 
     exclude_riders(K, _all_orders, _data, all_bundles, bike_rider, car_rider)
 
@@ -355,7 +356,7 @@ def exclude_riders(K, _all_orders, _data, all_bundles, bike_rider, car_rider):
                 _data["excluded_edges"].append((to_dlv_loc_id, from_dlv_loc_id))
 
 
-def exclude_walk_rider(K, _all_orders, _data, _rider_dict, all_bundles):
+def make_all_bundles_and_exclude_walk_matrix(K, _all_orders, _data, _rider_dict, all_bundles):
     time_matrix_walk = _data["time_matrix_walk"]
     for rider in _rider_dict.values():
         all_bundles[rider.type] = {}
@@ -365,12 +366,15 @@ def exclude_walk_rider(K, _all_orders, _data, _rider_dict, all_bundles):
             new_bundle = myutil.Bundle(_all_orders, rider, [order.id]
                                        , [order.id], order.volume
                                        , _data["distance_matrix"][shop_loc_id][dlv_loc_id])
-            if rider.type == 'WALK':
-                bundle_yn = myutil.try_single_bundle_with_rider(_all_orders, new_bundle, rider)
-                if bundle_yn is False:
-                    time_matrix_walk[0][shop_loc_id] = BIG_PENALTY_VALUE
-                    time_matrix_walk[shop_loc_id][dlv_loc_id] = BIG_PENALTY_VALUE
             all_bundles[rider.type][order.id] = new_bundle
+
+    walk_rider = _rider_dict['WALK']
+    for order in _all_orders:
+        walk_bundle = all_bundles['WALK'][order.id]
+        bundle_yn = myutil.try_single_bundle_with_rider(_all_orders, walk_bundle, walk_rider)
+        if bundle_yn is False:
+            time_matrix_walk[0][shop_loc_id] = BIG_PENALTY_VALUE
+            time_matrix_walk[shop_loc_id][dlv_loc_id] = BIG_PENALTY_VALUE
 
 
 def make_demand(all_orders):
