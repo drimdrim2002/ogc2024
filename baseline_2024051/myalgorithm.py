@@ -5,6 +5,7 @@ from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 import math
 from datetime import datetime
+import myutil
 
 BIG_PENALTY_VALUE = 99999999
 MARGIN_TIME = 5
@@ -29,6 +30,11 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     # [END index_manager]
 
     routing = pywrapcp.RoutingModel(manager)
+
+    for excluded_edge in data["excluded_edges"]:
+        a = manager.NodeToIndex(excluded_edge[0])
+        b = manager.NodeToIndex(excluded_edge[1])
+        routing.NextVar(a).RemoveValue(b)
 
     def demand_callback(from_index):
         """Returns the demand of the node."""
@@ -284,9 +290,12 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
     data["num_vehicles"] = num_vehicles
     data["vehicle_capacities"] = vehicle_capacity_arr
 
-    apply_time_penalty(K, all_orders, data["time_matrix_car"])
-    apply_time_penalty(K, all_orders, data["time_matrix_bike"])
-    apply_time_penalty(K, all_orders, data["time_matrix_walk"])
+    data["excluded_edges"] = []
+    rider_dict = {}
+    rider_dict['CAR'] = car_rider
+    rider_dict['BIKE'] = bike_rider
+    rider_dict['WALK'] = walk_rider
+    apply_time_penalty_with_util(K, all_orders, rider_dict, data)
 
     return data
 
@@ -564,3 +573,88 @@ def make_solution_bundle(data, manager, routing, solution):
         raise Exception("Short")
 
     return solution_bundle_arr
+
+
+def apply_time_penalty_with_util(K, _all_orders, _rider_dict, _data):
+    rider_type_car = 'CAR'
+    rider_type_bike = 'BIKE'
+
+    car_rider = _rider_dict[rider_type_car]
+    bike_rider = _rider_dict[rider_type_bike]
+
+    all_bundles = {}
+
+    # exclude walk rider
+    exclude_walk_rider(K, _all_orders, _data, _rider_dict, all_bundles)
+
+    exclude_riders(K, _all_orders, _data, all_bundles, bike_rider, car_rider)
+def exclude_riders(K, _all_orders, _data, all_bundles, bike_rider, car_rider):
+    time_matrix_car = _data["time_matrix_car"]
+    time_matrix_bike = _data["time_matrix_bike"]
+    time_matrix_walk = _data["time_matrix_walk"]
+
+    for from_order in _all_orders:
+        from_shop_loc_id = from_order.id + 1
+        from_dlv_loc_id = from_shop_loc_id + K
+        for to_order in _all_orders:
+            if from_order.id == to_order.id:
+                continue
+            to_shop_loc_id = to_order.id + 1
+            to_dlv_loc_id = to_shop_loc_id + K
+
+            bundle_test_rider = [car_rider, bike_rider]
+            fail_count = 0
+            for rider in bundle_test_rider:
+                all_bundles_by_type = all_bundles[rider.type]
+                _timx_matrix = time_matrix_car if rider.type == 'CAR' else time_matrix_bike
+
+                from_bundle = all_bundles_by_type[from_order.id]
+                to_bundle = all_bundles_by_type[to_order.id]
+
+                bundle_yn = myutil.try_merging_bundles_with_rider(_all_orders, from_bundle, to_bundle, rider)
+                if bundle_yn is False:
+                    _timx_matrix[from_shop_loc_id][to_shop_loc_id] = BIG_PENALTY_VALUE
+                    _timx_matrix[from_shop_loc_id][to_dlv_loc_id] = BIG_PENALTY_VALUE
+
+                    _timx_matrix[to_shop_loc_id][from_shop_loc_id] = BIG_PENALTY_VALUE
+                    _timx_matrix[to_shop_loc_id][from_dlv_loc_id] = BIG_PENALTY_VALUE
+
+                    _timx_matrix[from_dlv_loc_id][to_dlv_loc_id] = BIG_PENALTY_VALUE
+                    _timx_matrix[to_dlv_loc_id][from_dlv_loc_id] = BIG_PENALTY_VALUE
+
+                    time_matrix_walk[from_shop_loc_id][to_shop_loc_id] = BIG_PENALTY_VALUE
+                    time_matrix_walk[from_shop_loc_id][to_dlv_loc_id] = BIG_PENALTY_VALUE
+
+                    time_matrix_walk[to_shop_loc_id][from_shop_loc_id] = BIG_PENALTY_VALUE
+                    time_matrix_walk[to_shop_loc_id][from_dlv_loc_id] = BIG_PENALTY_VALUE
+
+                    time_matrix_walk[from_dlv_loc_id][to_dlv_loc_id] = BIG_PENALTY_VALUE
+                    time_matrix_walk[to_dlv_loc_id][from_dlv_loc_id] = BIG_PENALTY_VALUE
+
+                    fail_count += 1
+
+            if fail_count == 2:
+                _data["excluded_edges"].append((from_shop_loc_id, to_shop_loc_id))
+                _data["excluded_edges"].append((from_shop_loc_id, to_dlv_loc_id))
+                _data["excluded_edges"].append((to_shop_loc_id, from_shop_loc_id))
+                _data["excluded_edges"].append((to_shop_loc_id, from_dlv_loc_id))
+                _data["excluded_edges"].append((from_dlv_loc_id, to_dlv_loc_id))
+                _data["excluded_edges"].append((to_dlv_loc_id, from_dlv_loc_id))
+
+
+def exclude_walk_rider(K, _all_orders, _data, _rider_dict, all_bundles):
+    time_matrix_walk = _data["time_matrix_walk"]
+    for rider in _rider_dict.values():
+        all_bundles[rider.type] = {}
+        for order in _all_orders:
+            shop_loc_id = order.id + 1
+            dlv_loc_id = order.id + K + 1
+            new_bundle = myutil.Bundle(_all_orders, rider, [order.id]
+                                       , [order.id], order.volume
+                                       , _data["distance_matrix"][shop_loc_id][dlv_loc_id])
+            if rider.type == 'WALK':
+                bundle_yn = myutil.try_single_bundle_with_rider(_all_orders, new_bundle, rider)
+                if bundle_yn is False:
+                    time_matrix_walk[0][shop_loc_id] = BIG_PENALTY_VALUE
+                    time_matrix_walk[shop_loc_id][dlv_loc_id] = BIG_PENALTY_VALUE
+            all_bundles[rider.type][order.id] = new_bundle
