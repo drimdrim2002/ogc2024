@@ -3,7 +3,7 @@ import logging
 from datetime import datetime
 
 # from myalgorithm import algorithm
-from myalgorithm import algorithm
+from myalgorithm2 import algorithm
 from util import *
 
 # import subprocess
@@ -33,6 +33,10 @@ def main():
         print(f'file name: {file_name}, start time: {datetime.now().strftime("%H:%M:%S")}')
         # Now you have a list `all_data` containing the data from each JSON file
         checked_solution = solve(input_data)
+        break
+        if checked_solution is None:
+            continue
+
         if checked_solution['feasible'] is False:
             raise ValueError("Infeasible Error")
         all_solution[file_name] = checked_solution
@@ -92,17 +96,18 @@ def solve(prob):
     except Exception as e:
         exception = f'{e}'
         logging.exception(exception, e)
-        # logging.error(exception)
-    alg_end_time = time.time()
 
-    checked_solution = solution_check(K, ALL_ORDERS, ALL_RIDERS, DIST, solution)
-    checked_solution['time'] = alg_end_time - alg_start_time
-    checked_solution['timelimit_exception'] = (
-                                                      alg_end_time - alg_start_time) > timelimit + 1  # allowing additional 1 second!
-    checked_solution['exception'] = exception
-    checked_solution['prob_name'] = prob['name']
-    # checked_solution['prob_file'] = problem_file
-    return checked_solution
+        # logging.error(exception)
+    # alg_end_time = time.time()
+    #
+    # checked_solution = solution_check(K, ALL_ORDERS, ALL_RIDERS, DIST, solution)
+    # checked_solution['time'] = alg_end_time - alg_start_time
+    # checked_solution['timelimit_exception'] = (
+    #                                                   alg_end_time - alg_start_time) > timelimit + 1  # allowing additional 1 second!
+    # checked_solution['exception'] = exception
+    # checked_solution['prob_name'] = prob['name']
+    # # checked_solution['prob_file'] = problem_file
+    # return checked_solution
 
 
 if __name__ == "__main__":
