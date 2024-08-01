@@ -267,6 +267,8 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
         for row_index in range(0, 2 * K + 1):
             for column_index in range(0, 2 * K + 1):
                 distance = data["distance_matrix"][row_index][column_index]
+                if row_index == column_index or row_index == 0 or column_index ==0 :
+                    time_matrix[row_index][column_index] = 0
                 if distance == 0:
                     time_matrix[row_index][column_index] = int(math.ceil(distance / rider.speed + rider.service_time))
                 elif distance == BIG_PENALTY_VALUE:
@@ -475,6 +477,7 @@ def make_time_window(all_orders, _time_matrix):
     for order in all_orders:
         min_cust_arr = min_cust_arr_dict[order.id]
         time_window_arr.append((min_cust_arr, order.deadline))
+
 
     return time_window_arr
 
