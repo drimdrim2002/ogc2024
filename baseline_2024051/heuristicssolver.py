@@ -12,7 +12,15 @@ def get_jar_file_name():
     return jar_path
 
 
-def get_distance_and_duration(dist_mat, orgin_indexes, destination_indexes):
+def get_duration(dist_mat, orgin_indexes, destination_indexes):
+    duration_all_edges = {}
+    for origin_index in range(orgin_indexes[0], orgin_indexes[1]):
+        duration_all_edges[origin_index] = {}
+        for destination_index in range(destination_indexes[0], destination_indexes[1]):
+            duration_edge = dist_mat[origin_index][destination_index] if origin_index != destination_index else 0
+            duration_all_edges[origin_index][destination_index] = str(duration_edge)
+    return duration_all_edges
+def get_distance(dist_mat, orgin_indexes, destination_indexes):
     distance_all_edges = {}
     for origin_index in range(orgin_indexes[0], orgin_indexes[1]):
         distance_all_edges[origin_index] = {}
@@ -40,9 +48,14 @@ def get_original_input(K, all_orders, all_riders, dist_mat):
         rider_dict[rider.type]['fixed_cost'] = rider.fixed_cost
         rider_dict[rider.type]['service_time'] = rider.service_time
         rider_dict[rider.type]['available_number'] = rider.available_number
-    dist_shops = get_distance_and_duration(dist_mat, [0, K], [0, K])
-    dist_shops_to_dlvrys = get_distance_and_duration(dist_mat, [0, K], [K, 2 * K])
-    dist_dlvrys = get_distance_and_duration(dist_mat, [K, 2 * K], [K, 2 * K])
+        rider_dict[rider.type]['duration_shops'] = get_duration(rider.T, [0, K], [0, K])
+        rider_dict[rider.type]['duration_shops_to_dlvrys'] = get_duration(rider.T, [0, K], [K, 2 * K])
+        rider_dict[rider.type]['duration_dlvrys'] = get_duration(rider.T, [K, 2 * K], [K, 2 * K])
+    dist_shops = get_distance(dist_mat, [0, K], [0, K])
+    dist_shops_to_dlvrys = get_distance(dist_mat, [0, K], [K, 2 * K])
+    dist_dlvrys = get_distance(dist_mat, [K, 2 * K], [K, 2 * K])
+
+
     original_data = {'orders': json.dumps(order_dict), 'riders': json.dumps(rider_dict),
                      'dist_shops': json.dumps(dist_shops), 'dist_shops_to_dlvrys': json.dumps(dist_shops_to_dlvrys),
                      'dist_dlvrys': json.dumps(dist_dlvrys)}
@@ -98,6 +111,7 @@ def set_system_environment(original_data_str):
 def call_heuristics_result(K, all_orders, all_riders, dist_mat):
     jar_path = get_jar_file_name()
     original_data_str = get_original_input(K, all_orders, all_riders, dist_mat)
+    print(original_data_str)
     args = set_system_environment(original_data_str)
     heuristics_result = ''
     # Build the command to execute the JAR with arguments
