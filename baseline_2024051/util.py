@@ -302,6 +302,8 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
                 break
 
             # Deadline chaeck
+            if len(shop_seq) == 2 and 56 in shop_seq :
+                t = 1
             pickup_times, dlv_times = get_pd_times(all_orders, rider.T, shop_seq, dlv_seq)
             for k in dlv_seq:
                 all_deliveies.append(k)

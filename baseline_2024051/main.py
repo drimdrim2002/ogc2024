@@ -33,7 +33,6 @@ def main():
         print(f'file name: {file_name}, start time: {datetime.now().strftime("%H:%M:%S")}')
         # Now you have a list `all_data` containing the data from each JSON file
         checked_solution = solve(input_data)
-        break
         if checked_solution is None:
             continue
 
@@ -98,16 +97,16 @@ def solve(prob):
         logging.exception(exception, e)
 
         # logging.error(exception)
-    # alg_end_time = time.time()
-    #
-    # checked_solution = solution_check(K, ALL_ORDERS, ALL_RIDERS, DIST, solution)
-    # checked_solution['time'] = alg_end_time - alg_start_time
-    # checked_solution['timelimit_exception'] = (
-    #                                                   alg_end_time - alg_start_time) > timelimit + 1  # allowing additional 1 second!
-    # checked_solution['exception'] = exception
-    # checked_solution['prob_name'] = prob['name']
-    # # checked_solution['prob_file'] = problem_file
-    # return checked_solution
+    alg_end_time = time.time()
+
+    checked_solution = solution_check(K, ALL_ORDERS, ALL_RIDERS, DIST, solution)
+    checked_solution['time'] = alg_end_time - alg_start_time
+    checked_solution['timelimit_exception'] = (
+                                                      alg_end_time - alg_start_time) > timelimit + 1  # allowing additional 1 second!
+    checked_solution['exception'] = exception
+    checked_solution['prob_name'] = prob['name']
+    # checked_solution['prob_file'] = problem_file
+    return checked_solution
 
 
 if __name__ == "__main__":
