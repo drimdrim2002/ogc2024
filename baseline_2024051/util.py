@@ -302,7 +302,7 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
                 break
 
             # Deadline chaeck
-            if len(shop_seq) == 2 and 56 in shop_seq :
+            if len(shop_seq) == 3 and 3 in shop_seq :
                 t = 1
             pickup_times, dlv_times = get_pd_times(all_orders, rider.T, shop_seq, dlv_seq)
             for k in dlv_seq:
@@ -313,7 +313,7 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
 
             dist = get_total_distance(K, dist_mat, shop_seq, dlv_seq)
             cost = rider.calculate_cost(dist)
-
+            # print(f'shop_seq: {shop_seq}, cost: {cost}')
             total_dist += dist
             total_cost += cost
 

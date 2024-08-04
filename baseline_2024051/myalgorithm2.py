@@ -15,7 +15,6 @@ MAX_SOLVING_TIME = 60
 
 
 def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
-
     before_make_input_data_time = datetime.now()
     data = make_input_data(K, dist_mat, all_orders, all_riders)
     after_make_input_data_time = datetime.now()
@@ -192,7 +191,6 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         index = manager.NodeToIndex(location_idx)
         time_dimension.CumulVar(index).SetRange(time[0], time[1])
 
-
     # Setting first solution heuristic.
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.first_solution_strategy = (
@@ -206,36 +204,42 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         heuristicssolver.get_initial_solution(K, all_orders, all_riders, dist_mat, data["vehicle_type_by_index"]))
 
     # solution_bundle_arr = []
-    # for ddd in initial_solution_matrix:
-    #     shop_seq_arr = []
-    #     dlv_seq_arr = []
-    #     for ccc in ddd:
-    #         if ccc < K:
-    #             shop_seq_arr.append(ccc)
-    #         else :
-    #             dlv_seq_arr.append(ccc - K)
-    #
-    #     solution_bundle = ['CAR', shop_seq_arr, dlv_seq_arr]
-    #     solution_bundle_arr.append(solution_bundle)
+    # for vehicle_index in range(0, data['num_vehicles']):
+    #     route_seq = initial_solution_matrix[vehicle_index]
+    #     if len(route_seq) > 0:
+    #         vehicle_type = data['vehicle_type_by_index'][vehicle_index]
+    #         shop_seq_arr = route_seq[0 : int(len(route_seq) / 2)]
+    #         dlv_seq_arr = route_seq[int(len(route_seq) / 2) : int(len(route_seq))]
+    #         dlv_seq_arr = [x - K for x in dlv_seq_arr]
+    #         solution_bundle = [vehicle_type, shop_seq_arr, dlv_seq_arr]
+    #         solution_bundle_arr.append(solution_bundle)
     # return solution_bundle_arr
-    # solution_bundle = [vehicle_type, shop_seq_arr, dlv_seq_arr]
-    # solution_bundle_arr.append(solution_bundle)
-    # print(initial_solution_matrix)
-    initial_solution = routing.ReadAssignmentFromRoutes(initial_solution_matrix, True)
-    # print_initial_solution(data, manager, routing, initial_solution)
 
+    if initial_solution_matrix:
+        for vehicle_index in range(0, data['num_vehicles']):
+            route_seq = initial_solution_matrix[vehicle_index]
+            if len(route_seq) > 0:
+                route_seq = [int(x + 1) for x in route_seq]
+                initial_solution_matrix[vehicle_index] = route_seq
+
+        initial_solution = routing.ReadAssignmentFromRoutes(
+            initial_solution_matrix, True)
+        print("initial solution exists\n", initial_solution)
+        # print_solution(data, manager, routing, initial_solution)
+    else:
+        print("Not initial route specified")
+
+    # # print_initial_solution(data, manager, routing, initial_solution)
+    #
     assignment = routing.SolveFromAssignmentWithParameters(
         initial_solution, search_parameters
     )
-
-
 
     print(f'solve start time: {datetime.now().strftime("%H:%M:%S")}')
 
     # Solve the problem.
     # assignment = routing.SolveWithParameters(search_parameters)
     # Solve the problem.
-
 
     print(f'solve end time: {datetime.now().strftime("%H:%M:%S")}')
 
@@ -260,9 +264,6 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     else:
         print("No assignment")
     t = 1
-
-
-
 
 
 def make_input_data(K, dist_mat, all_orders, all_riders):
@@ -438,8 +439,6 @@ def make_distance_matrix_new(K, dist_mat):
             # set long distance from customer to shop
             if K < from_loc_id < distance_matrix_size and 0 < to_loc_id < K + 1:
                 distance = BIG_PENALTY_VALUE
-
-
 
             new_dist_matrix[from_loc_id][to_loc_id] = distance
 
@@ -628,6 +627,8 @@ def apply_time_penalty_with_util(K, _all_orders, _rider_dict, _data):
     exclude_walk_rider(K, _all_orders, _data, _rider_dict, all_bundles)
 
     exclude_riders(K, _all_orders, _data, all_bundles, bike_rider, car_rider)
+
+
 def exclude_riders(K, _all_orders, _data, all_bundles, bike_rider, car_rider):
     time_matrix_car = _data["time_matrix_car"]
     time_matrix_bike = _data["time_matrix_bike"]

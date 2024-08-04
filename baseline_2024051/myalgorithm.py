@@ -98,14 +98,14 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
         distance = data["distance_matrix"][from_node][to_node]
-        if distance == BIG_PENALTY_VALUE:
-            return BIG_PENALTY_VALUE
 
-        duration = data["time_matrix_car"][from_node][to_node]
-        if duration == BIG_PENALTY_VALUE:
-            return BIG_PENALTY_VALUE
+        # if distance == BIG_PENALTY_VALUE:
+        #     return BIG_PENALTY_VALUE
+        #
+        # duration = data["time_matrix_car"][from_node][to_node]
+        # if duration == BIG_PENALTY_VALUE:
+        #     return BIG_PENALTY_VALUE
         car_var_cost = rider_cost_info['CAR']['var_cost']
-
         car_fixed_cost = rider_cost_info['CAR']['fixed_cost'] if from_node == 0 else 0
         return int(car_fixed_cost) + int((distance / 100) * car_var_cost)
 
@@ -116,12 +116,13 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
         distance = data["distance_matrix"][from_node][to_node]
-        if distance == BIG_PENALTY_VALUE:
-            return BIG_PENALTY_VALUE
 
-        duration = data["time_matrix_bike"][from_node][to_node]
-        if duration == BIG_PENALTY_VALUE:
-            return BIG_PENALTY_VALUE
+        # if distance == BIG_PENALTY_VALUE:
+        #     return BIG_PENALTY_VALUE
+        #
+        # duration = data["time_matrix_bike"][from_node][to_node]
+        # if duration == BIG_PENALTY_VALUE:
+        #     return BIG_PENALTY_VALUE
         bike_fixed_cost = rider_cost_info['BIKE']['fixed_cost'] if from_node == 0 else 0
         bike_var_cost = rider_cost_info['BIKE']['var_cost']
         return int(bike_fixed_cost) + int((distance / 100) * bike_var_cost)
@@ -134,11 +135,12 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
         distance = data["distance_matrix"][from_node][to_node]
-        if distance == BIG_PENALTY_VALUE:
-            return BIG_PENALTY_VALUE
-        duration = data["time_matrix_walk"][from_node][to_node]
-        if duration == BIG_PENALTY_VALUE:
-            return BIG_PENALTY_VALUE
+
+        # if distance == BIG_PENALTY_VALUE:
+        #     return BIG_PENALTY_VALUE
+        # duration = data["time_matrix_walk"][from_node][to_node]
+        # if duration == BIG_PENALTY_VALUE:
+        #     return BIG_PENALTY_VALUE
         walk_fixed_cost = rider_cost_info['WALK']['fixed_cost'] if from_node == 0 else 0
 
         walk_var_cost = rider_cost_info['WALK']['var_cost']
@@ -168,7 +170,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     routing.AddDimensionWithVehicleTransits(
         transit_callback_arr,
         0,  # allow waiting time
-        BIG_PENALTY_VALUE - 1000,  # maximum time per vehicle todo planning horizon을 확인해야 함
+        10000,  # maximum time per vehicle todo planning horizon을 확인해야 함
         False,  # Don't force start cumul to zero.
         time,
     )
@@ -295,6 +297,7 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
     rider_dict['CAR'] = car_rider
     rider_dict['BIKE'] = bike_rider
     rider_dict['WALK'] = walk_rider
+
     apply_time_penalty_with_util(K, all_orders, rider_dict, data)
 
     return data
@@ -586,9 +589,9 @@ def apply_time_penalty_with_util(K, _all_orders, _rider_dict, _data):
     all_bundles = {}
 
     # exclude walk rider
-    exclude_walk_rider(K, _all_orders, _data, _rider_dict, all_bundles)
+    # exclude_walk_rider(K, _all_orders, _data, _rider_dict, all_bundles)
 
-    exclude_riders(K, _all_orders, _data, all_bundles, bike_rider, car_rider)
+    # exclude_riders(K, _all_orders, _data, all_bundles, bike_rider, car_rider)
 def exclude_riders(K, _all_orders, _data, all_bundles, bike_rider, car_rider):
     time_matrix_car = _data["time_matrix_car"]
     time_matrix_bike = _data["time_matrix_bike"]

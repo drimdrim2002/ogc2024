@@ -75,11 +75,10 @@ def get_initial_solution(K, all_orders, all_riders, dist_mat, vehicle_type_by_in
             shop_seq_arr = heuristics_result[vehicle_id_str]['shopSeq']
             dlvry_seq_arr = heuristics_result[vehicle_id_str]['deliverySeq']
             for shop_seq in shop_seq_arr:
-                route_seq.append((int(shop_seq)) + 1)
+                route_seq.append((int(shop_seq)) )
             for dlvry_seq in dlvry_seq_arr:
-                route_seq.append((int(dlvry_seq + K)) + 1)
-
-            initial_solution.append(route_seq)
+                route_seq.append((int(dlvry_seq + K)) )
+        initial_solution.append(route_seq)
     # for i in range(1, 101) :
     #     route = []
     #     route.append(i)
@@ -111,7 +110,7 @@ def set_system_environment(original_data_str):
 def call_heuristics_result(K, all_orders, all_riders, dist_mat):
     jar_path = get_jar_file_name()
     original_data_str = get_original_input(K, all_orders, all_riders, dist_mat)
-    print(original_data_str)
+    # print(original_data_str)
     args = set_system_environment(original_data_str)
     heuristics_result = ''
     # Build the command to execute the JAR with arguments

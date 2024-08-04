@@ -2,8 +2,8 @@ import glob
 import logging
 from datetime import datetime
 
-# from myalgorithm import algorithm
-from myalgorithm2 import algorithm
+from myalgorithm import algorithm
+# from myalgorithm2 import algorithm
 from util import *
 
 # import subprocess
@@ -41,9 +41,9 @@ def main():
         all_solution[file_name] = checked_solution
         print(checked_solution)
 
-    read_previous_result_and_compare_solutions(all_solution)
+    # read_previous_result_and_compare_solutions(all_solution)
 
-    # write_solutions(all_solution)
+    write_solutions(all_solution)
 
 
 def read_previous_result_and_compare_solutions(all_solution):
@@ -86,6 +86,7 @@ def solve(prob):
     DIST = np.array(prob['DIST'])
     for r in ALL_RIDERS:
         r.T = np.round(DIST / r.speed + r.service_time)
+
     alg_start_time = time.time()
     exception = None
     solution = None

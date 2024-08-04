@@ -49,7 +49,9 @@ class Rider:
     # 주어진 거리에 대한 배달원 비용 계산
     # = 배달원별 고정비 + 이동거리로 계산된 변동비
     def calculate_cost(self, dist):
-        return int(self.fixed_cost) + int(dist / 100.0 * self.var_cost)
+        cost = int(self.fixed_cost) + int(dist / 100.0 * self.var_cost)
+        print(cost)
+        return cost
 
 
 # 묶음 주문 정보
