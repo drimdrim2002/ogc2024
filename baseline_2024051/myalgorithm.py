@@ -12,9 +12,7 @@ MARGIN_TIME = 5
 MAX_SOLVING_TIME = 60
 
 
-def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
-    # print(f'K : {K}')
-
+def xxx(K, all_orders, all_riders, dist_mat, timelimit=60):
     before_make_input_data_time = datetime.now()
     data = make_input_data(K, dist_mat, all_orders, all_riders)
     after_make_input_data_time = datetime.now()
@@ -22,6 +20,8 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     print(f'make input data time (sec): ({make_input_data_time})')
 
     solving_time = MAX_SOLVING_TIME - MARGIN_TIME - make_input_data_time
+
+    ## 1/3으로 쪼개서 풀어본다
 
     # Create the routing index manager.
     # [START index_manager]
@@ -36,7 +36,6 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     #     b = manager.NodeToIndex(excluded_edge[1])
     #     routing.NextVar(a).RemoveValue(b)
     #     routing.solver().Add(routing.VehicleVar(a) != routing.VehicleVar(b))
-
 
     def demand_callback(from_index):
         """Returns the demand of the node."""
@@ -229,13 +228,65 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         print("No assignment")
 
 
+def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
+    # print(f'K : {K}')
+
+    order_split_size = math.ceil(K / 3)
+    order_split_dict = {}
+    for i in range(0, 3):
+        order_split_dict[i] = {}
+        order_start_index = i * order_split_size
+        order_end_index = min((i + 1) * order_split_size, K)
+        order_split_dict[i]['order_start_index'] = order_start_index
+        order_split_dict[i]['order_end_index'] = order_end_index
+
+    rider_split_dict = {}
+    for rider in all_riders:
+        remain_avail_number = rider.available_number
+        rider_split_size = math.ceil(rider.available_number/3)
+        rider_split_dict[rider.type] = []
+        for i in range(0, 3):
+            rider_split_dict[rider.type].append(min(remain_avail_number, rider_split_size))
+            remain_avail_number -= rider_split_size
+
+
+
+    t = 1
+    total_solution_bundle_arr = []
+    for i in range(0, 3):
+        order_start_index = order_split_dict[i]['order_start_index']
+        order_end_index = order_split_dict[i]['order_end_index']
+        order_size = order_end_index - order_start_index
+
+        new_orders = all_orders[order_start_index: order_end_index]
+        # order_idx = 0
+        # for new_order in new_orders:
+        #     new_order.id = order_idx
+        #     order_idx += 1
+
+        car_available_number = rider_split_dict['CAR'][i]
+        bike_available_number = rider_split_dict['BIKE'][i]
+        walk_available_number = rider_split_dict['WALK'][i]
+
+        for rider in all_riders:
+            if rider.type == 'CAR':
+                rider.available_number = car_available_number
+            elif rider.type == 'BIKE':
+                rider.available_number = bike_available_number
+            else:
+                rider.available_number = walk_available_number
+
+        solution_bundle_arr = xxx(order_size, new_orders, all_riders, dist_mat, timelimit)
+        total_solution_bundle_arr.append(solution_bundle_arr)
+    return total_solution_bundle_arr
+
+
 def make_input_data(K, dist_mat, all_orders, all_riders):
     data = {}
 
     data["depot"] = 0  # dummy depot
 
     data["distance_matrix"] = make_distance_matrix(K, dist_mat)
-    # data["distance_matrix"] = make_distance_matrix(K, dist_mat)
 
     data["pickups_deliveries"] = make_pickup_delivery(K)
 
@@ -293,7 +344,6 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
         elif rider.type == 'BIKE':
             data["time_matrix_bike"] = time_matrix
             data["time_matrix_bike"] = data["time_matrix_bike"].astype(int).tolist()
-
         else:
             data["time_matrix_walk"] = time_matrix
             data["time_matrix_walk"] = data["time_matrix_walk"].astype(int).tolist()
