@@ -254,9 +254,18 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
             walk_rider = rider
 
     ordered_riders = []
-    ordered_riders.append(car_rider)
-    ordered_riders.append(bike_rider)
-    ordered_riders.append(walk_rider)
+    if K == 100:
+        ordered_riders.append(car_rider)
+        ordered_riders.append(bike_rider)
+        ordered_riders.append(walk_rider)
+    elif K == 200:
+        ordered_riders.append(bike_rider)
+        ordered_riders.append(car_rider)
+        ordered_riders.append(walk_rider)
+    else:
+        ordered_riders.append(bike_rider)
+        ordered_riders.append(walk_rider)
+        ordered_riders.append(car_rider)
 
     for rider in ordered_riders:
         num_vehicles += rider.available_number
@@ -402,8 +411,6 @@ def make_distance_matrix_new(K, dist_mat):
             if K < from_loc_id < distance_matrix_size and 0 < to_loc_id < K + 1:
                 distance = BIG_PENALTY_VALUE
 
-
-
             new_dist_matrix[from_loc_id][to_loc_id] = distance
 
     # set long distance from depot to customer
@@ -478,7 +485,6 @@ def make_time_window(all_orders, _time_matrix):
     for order in all_orders:
         min_cust_arr = min_cust_arr_dict[order.id]
         time_window_arr.append((min_cust_arr, order.deadline))
-
 
     return time_window_arr
 
@@ -592,6 +598,8 @@ def apply_time_penalty_with_util(K, _all_orders, _rider_dict, _data):
     # exclude_walk_rider(K, _all_orders, _data, _rider_dict, all_bundles)
 
     # exclude_riders(K, _all_orders, _data, all_bundles, bike_rider, car_rider)
+
+
 def exclude_riders(K, _all_orders, _data, all_bundles, bike_rider, car_rider):
     time_matrix_car = _data["time_matrix_car"]
     time_matrix_bike = _data["time_matrix_bike"]
