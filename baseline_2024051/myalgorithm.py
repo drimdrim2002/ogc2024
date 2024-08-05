@@ -265,8 +265,8 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
         ordered_riders.append(bike_rider)
         ordered_riders.append(walk_rider)
     else:
-        ordered_riders.append(bike_rider)
         ordered_riders.append(car_rider)
+        ordered_riders.append(bike_rider)
         ordered_riders.append(walk_rider)
 
     for rider in ordered_riders:
