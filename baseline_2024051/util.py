@@ -29,7 +29,6 @@ class Order:
         self.cook_time = order_info[6]
         self.volume = order_info[7]
         self.deadline = order_info[8]
-
         self.ready_time = self.order_time + self.cook_time
 
     def __repr__(self) -> str:
@@ -302,7 +301,7 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
                 break
 
             # Deadline chaeck
-            if len(shop_seq) == 3 and 3 in shop_seq :
+            if len(shop_seq) == 2 and 27 in shop_seq :
                 t = 1
             pickup_times, dlv_times = get_pd_times(all_orders, rider.T, shop_seq, dlv_seq)
             for k in dlv_seq:

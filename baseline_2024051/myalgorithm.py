@@ -6,20 +6,21 @@ from ortools.constraint_solver import pywrapcp
 import math
 from datetime import datetime
 import myutil
+import util
 
 BIG_PENALTY_VALUE = 99999999
 MARGIN_TIME = 5
 MAX_SOLVING_TIME = 60
 
 
-def xxx(K, all_orders, all_riders, dist_mat, timelimit=60):
+def xxx(order_len, _all_orders, _all_riders, _dist_mat, timelimit):
     before_make_input_data_time = datetime.now()
-    data = make_input_data(K, dist_mat, all_orders, all_riders)
+    data = make_input_data(order_len, _dist_mat, _all_orders, _all_riders)
     after_make_input_data_time = datetime.now()
     make_input_data_time = (after_make_input_data_time - before_make_input_data_time).seconds
     print(f'make input data time (sec): ({make_input_data_time})')
 
-    solving_time = MAX_SOLVING_TIME - MARGIN_TIME - make_input_data_time
+    solving_time = timelimit
 
     ## 1/3으로 쪼개서 풀어본다
 
@@ -53,7 +54,7 @@ def xxx(K, all_orders, all_riders, dist_mat, timelimit=60):
 
     rider_cost_info = {'CAR': {}, 'BIKE': {}, 'WALK': {}}
 
-    for rider in all_riders:
+    for rider in _all_riders:
         fixed_cost = rider.fixed_cost
         var_cost = rider.var_cost
         if rider.type == 'CAR':
@@ -192,6 +193,8 @@ def xxx(K, all_orders, all_riders, dist_mat, timelimit=60):
             continue
 
         index = manager.NodeToIndex(location_idx)
+        if time[0] > time[1] :
+            print(location_idx, index, time)
         time_dimension.CumulVar(index).SetRange(time[0], time[1])
 
     # Setting first solution heuristic.
@@ -209,7 +212,7 @@ def xxx(K, all_orders, all_riders, dist_mat, timelimit=60):
     # print("Solver status: ", assignment.status())
     # Print solution on console.
     if assignment:
-        print_solution_simple(data, manager, routing, assignment, all_riders, K)
+        print_solution_simple(data, manager, routing, assignment, _all_riders, order_len)
         solution_bundle_arr = make_solution_bundle(data, manager, routing, assignment)
 
         solution_bundle_by_type = {'CAR': [], 'BIKE': [], 'WALK': []}
@@ -230,39 +233,41 @@ def xxx(K, all_orders, all_riders, dist_mat, timelimit=60):
 
 def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     # print(f'K : {K}')
-
-    order_split_size = math.ceil(K / 3)
+    split_size = 5
+    order_split_size = math.ceil(K / split_size)
     order_split_dict = {}
-    for i in range(0, 3):
+    for i in range(0, split_size):
         order_split_dict[i] = {}
         order_start_index = i * order_split_size
-        order_end_index = min((i + 1) * order_split_size, K)
+        order_end_index = min((i + 1) * order_split_size - 1, K - 1)
         order_split_dict[i]['order_start_index'] = order_start_index
         order_split_dict[i]['order_end_index'] = order_end_index
 
     rider_split_dict = {}
     for rider in all_riders:
         remain_avail_number = rider.available_number
-        rider_split_size = math.ceil(rider.available_number/3)
+        rider_split_size = math.ceil(rider.available_number / split_size)
         rider_split_dict[rider.type] = []
-        for i in range(0, 3):
+        for i in range(0, split_size):
             rider_split_dict[rider.type].append(min(remain_avail_number, rider_split_size))
             remain_avail_number -= rider_split_size
 
-
-
     t = 1
     total_solution_bundle_arr = []
-    for i in range(0, 3):
+    for i in range(0, split_size):
+        if i == 2:
+            t = 1
         order_start_index = order_split_dict[i]['order_start_index']
         order_end_index = order_split_dict[i]['order_end_index']
-        order_size = order_end_index - order_start_index
 
-        new_orders = all_orders[order_start_index: order_end_index]
-        # order_idx = 0
-        # for new_order in new_orders:
-        #     new_order.id = order_idx
-        #     order_idx += 1
+        new_orders = all_orders[order_start_index: order_end_index + 1]
+        order_size = len(new_orders)
+
+
+        order_idx = 0
+        for new_order in new_orders:
+            new_order.id = order_idx
+            order_idx += 1
 
         car_available_number = rider_split_dict['CAR'][i]
         bike_available_number = rider_split_dict['BIKE'][i]
@@ -276,8 +281,61 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
             else:
                 rider.available_number = walk_available_number
 
-        solution_bundle_arr = xxx(order_size, new_orders, all_riders, dist_mat, timelimit)
-        total_solution_bundle_arr.append(solution_bundle_arr)
+        dict_idx = 0
+        dict_idx_converter = {}
+        for i in range(order_start_index, order_end_index + 1):
+            dict_idx_converter[i] = dict_idx
+            dict_idx += 1
+
+        for i in range(order_start_index + K, order_end_index + K + 1):
+            dict_idx_converter[i] = dict_idx
+            dict_idx += 1
+
+        dict_idx = 0
+        for i in dict_idx_converter:
+            if dict_idx_converter[i] != dict_idx:
+                print(i, dict_idx)
+            dict_idx += 1
+
+        t = 1
+        new_dist_mat = np.zeros((2 * order_size , 2 * order_size ))
+
+        # ## shop to shop
+        for i in range(order_start_index, order_end_index + 1):
+            for j in range(order_start_index, order_end_index + 1):
+                # print('---')
+                # print(i, j)
+                # print(dict_idx_converter[i], dict_idx_converter[j])
+                new_dist_mat[dict_idx_converter[i]][dict_idx_converter[j]] = dist_mat[i][j]
+
+        ## shop to delivery
+        for i in range(order_start_index, order_end_index + 1):
+            for j in range(order_start_index + K, order_end_index + K + 1):
+                # print('---')
+                # print (i, j)
+                # print(dict_idx_converter[i],dict_idx_converter[j] )
+                new_dist_mat[dict_idx_converter[i]][dict_idx_converter[j]] = dist_mat[i][j]
+
+        ## delivery to delivery
+        for i in range(order_start_index + K, order_end_index + K + 1):
+            for j in range(order_start_index + K, order_end_index + K + 1):
+                # print('---')
+                # print(i, j)
+                # print(dict_idx_converter[i], dict_idx_converter[j])
+                new_dist_mat[dict_idx_converter[i]][dict_idx_converter[j]] = dist_mat[i][j]
+
+        # tt = {}
+        # for new_order in new_orders:
+        #     tt[new_order.id] = new_dist_mat[new_order.id][new_order.id + order_size]
+        # new_orders = sorted(new_orders, key=lambda x : tt[x.id] * -1 )
+
+        new_orders = sorted(new_orders, key=lambda x: x.deadline)
+
+        solution_bundle_arr = xxx(order_size, new_orders, all_riders, new_dist_mat, 50)
+        # util.solution_check(order_size, new_orders, all_riders, new_dist_mat, solution_bundle_arr)
+        total_solution_bundle_arr.extend(solution_bundle_arr)
+
+
     return total_solution_bundle_arr
 
 
@@ -307,18 +365,22 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
             walk_rider = rider
 
     ordered_riders = []
-    if K <= 50:
-        ordered_riders.append(bike_rider)
-        ordered_riders.append(walk_rider)
-        ordered_riders.append(car_rider)
-    elif 50 < K <= 100:
-        ordered_riders.append(car_rider)
-        ordered_riders.append(bike_rider)
-        ordered_riders.append(walk_rider)
-    else:
-        ordered_riders.append(car_rider)
-        ordered_riders.append(bike_rider)
-        ordered_riders.append(walk_rider)
+    ordered_riders.append(bike_rider)
+    ordered_riders.append(car_rider)
+    ordered_riders.append(walk_rider)
+
+    # if K <= 50:
+    #     ordered_riders.append(bike_rider)
+    #     ordered_riders.append(walk_rider)
+    #     ordered_riders.append(car_rider)
+    # elif 50 < K <= 100:
+    #     ordered_riders.append(car_rider)
+    #     ordered_riders.append(bike_rider)
+    #     ordered_riders.append(walk_rider)
+    # else:
+    #     ordered_riders.append(car_rider)
+    #     ordered_riders.append(bike_rider)
+    #     ordered_riders.append(walk_rider)
 
     for rider in ordered_riders:
         num_vehicles += rider.available_number
