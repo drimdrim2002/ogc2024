@@ -31,10 +31,12 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
     routing = pywrapcp.RoutingModel(manager)
 
-    for excluded_edge in data["excluded_edges"]:
-        a = manager.NodeToIndex(excluded_edge[0])
-        b = manager.NodeToIndex(excluded_edge[1])
-        routing.NextVar(a).RemoveValue(b)
+    # for excluded_edge in data["excluded_edges"]:
+    #     a = manager.NodeToIndex(excluded_edge[0])
+    #     b = manager.NodeToIndex(excluded_edge[1])
+    #     routing.NextVar(a).RemoveValue(b)
+    #     routing.solver().Add(routing.VehicleVar(a) != routing.VehicleVar(b))
+
 
     def demand_callback(from_index):
         """Returns the demand of the node."""
@@ -254,18 +256,18 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
             walk_rider = rider
 
     ordered_riders = []
-    if K == 100:
-        ordered_riders.append(car_rider)
+    if K <= 50:
         ordered_riders.append(bike_rider)
         ordered_riders.append(walk_rider)
-    elif K == 200:
-        ordered_riders.append(bike_rider)
         ordered_riders.append(car_rider)
+    elif 50 < K <= 100:
+        ordered_riders.append(car_rider)
+        ordered_riders.append(bike_rider)
         ordered_riders.append(walk_rider)
     else:
         ordered_riders.append(bike_rider)
-        ordered_riders.append(walk_rider)
         ordered_riders.append(car_rider)
+        ordered_riders.append(walk_rider)
 
     for rider in ordered_riders:
         num_vehicles += rider.available_number
@@ -307,7 +309,7 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
     rider_dict['BIKE'] = bike_rider
     rider_dict['WALK'] = walk_rider
 
-    apply_time_penalty_with_util(K, all_orders, rider_dict, data)
+    # apply_time_penalty_with_util(K, all_orders, rider_dict, data)
 
     return data
 
@@ -595,7 +597,7 @@ def apply_time_penalty_with_util(K, _all_orders, _rider_dict, _data):
     all_bundles = {}
 
     # exclude walk rider
-    # exclude_walk_rider(K, _all_orders, _data, _rider_dict, all_bundles)
+    exclude_walk_rider(K, _all_orders, _data, _rider_dict, all_bundles)
 
     # exclude_riders(K, _all_orders, _data, all_bundles, bike_rider, car_rider)
 
