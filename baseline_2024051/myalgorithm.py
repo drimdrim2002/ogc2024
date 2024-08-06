@@ -37,7 +37,6 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     #     routing.NextVar(a).RemoveValue(b)
     #     routing.solver().Add(routing.VehicleVar(a) != routing.VehicleVar(b))
 
-
     def demand_callback(from_index):
         """Returns the demand of the node."""
         # Convert from routing variable Index to demands NodeIndex.
@@ -107,9 +106,9 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         # duration = data["time_matrix_car"][from_node][to_node]
         # if duration == BIG_PENALTY_VALUE:
         #     return BIG_PENALTY_VALUE
+        # car_fixed_cost = rider_cost_info['CAR']['fixed_cost'] if from_node == 0 else 0
         car_var_cost = rider_cost_info['CAR']['var_cost']
-        car_fixed_cost = rider_cost_info['CAR']['fixed_cost'] if from_node == 0 else 0
-        return int(car_fixed_cost) + int((distance / 100) * car_var_cost)
+        return int((distance / 100) * car_var_cost)
 
     # cost_callback_car.SetGlobalSpanCostCoefficient(100)
     cost_callback_index_car = routing.RegisterTransitCallback(cost_callback_car)
@@ -125,9 +124,9 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         # duration = data["time_matrix_bike"][from_node][to_node]
         # if duration == BIG_PENALTY_VALUE:
         #     return BIG_PENALTY_VALUE
-        bike_fixed_cost = rider_cost_info['BIKE']['fixed_cost'] if from_node == 0 else 0
+        # bike_fixed_cost = rider_cost_info['BIKE']['fixed_cost'] if from_node == 0 else 0
         bike_var_cost = rider_cost_info['BIKE']['var_cost']
-        return int(bike_fixed_cost) + int((distance / 100) * bike_var_cost)
+        return int((distance / 100) * bike_var_cost)
 
     # cost_callback_bike.SetGlobalSpanCostCoefficient(100)
 
@@ -143,10 +142,10 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         # duration = data["time_matrix_walk"][from_node][to_node]
         # if duration == BIG_PENALTY_VALUE:
         #     return BIG_PENALTY_VALUE
-        walk_fixed_cost = rider_cost_info['WALK']['fixed_cost'] if from_node == 0 else 0
+        # walk_fixed_cost = rider_cost_info['WALK']['fixed_cost'] if from_node == 0 else 0
 
         walk_var_cost = rider_cost_info['WALK']['var_cost']
-        return int(walk_fixed_cost) + int((distance / 100) * walk_var_cost)
+        return int((distance / 100) * walk_var_cost)
 
     # cost_callback_walk.SetGlobalSpanCostCoefficient(100)
 
@@ -157,12 +156,15 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         vehicle_type = data["vehicle_type_by_index"][vehicle_index]
         if vehicle_type == 'CAR':
             transit_callback_arr.append(transit_callback_index_car)
+            routing.SetFixedCostOfVehicle(rider_cost_info['CAR']['fixed_cost'], vehicle_index)
             routing.SetArcCostEvaluatorOfVehicle(cost_callback_index_car, vehicle_index)
         elif vehicle_type == 'BIKE':
             transit_callback_arr.append(transit_callback_index_bike)
+            routing.SetFixedCostOfVehicle(rider_cost_info['BIKE']['fixed_cost'], vehicle_index)
             routing.SetArcCostEvaluatorOfVehicle(cost_callback_index_bike, vehicle_index)
         else:
             transit_callback_arr.append(transit_callback_index_walk)
+            routing.SetFixedCostOfVehicle(rider_cost_info['WALK']['fixed_cost'], vehicle_index)
             routing.SetArcCostEvaluatorOfVehicle(cost_callback_index_walk, vehicle_index)
 
     # routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index_car)
