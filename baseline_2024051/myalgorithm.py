@@ -451,11 +451,32 @@ def make_distance_matrix(K, dist_mat):
         for shop_index in range(1, K + 1):
             new_dist_matrix[customer_index][shop_index] = BIG_PENALTY_VALUE
 
-    # set long distance from shop to customer without pickup
-    # for sho_index in range(1, K + 1):
-    #     for customer_index in range(K + 1, 2 * K + 1):
-    #         if sho_index + K != customer_index:
-    #             new_dist_matrix[customer_index][shop_index] = BIG_PENALTY_VALUE
+    for origin_idex in range(1, K + 1):
+        row_matrix_dict = {}
+        for destination_idex in range(1, K + 1):
+            if origin_idex == destination_idex:
+                continue
+            shop_dist = new_dist_matrix[origin_idex][destination_idex]
+            delivery_dist = new_dist_matrix[origin_idex + K][destination_idex + K]
+            shop_to_delivery_dist_1 = new_dist_matrix[origin_idex][destination_idex + K]
+            shop_to_delivery_dist_2 = new_dist_matrix[destination_idex][origin_idex + K]
+            shop_to_delivery_dist_avg = int((shop_to_delivery_dist_1 + shop_to_delivery_dist_2) / 2)
+
+            total_dist = shop_dist + delivery_dist + shop_to_delivery_dist_avg
+            if total_dist > 13000:
+                new_dist_matrix[origin_idex][destination_idex] = BIG_PENALTY_VALUE
+
+            # row_matrix_dict[destination_idex] = total_dist
+        # sorted_row_matrx_dict = dict(sorted(row_matrix_dict.items(), key=lambda item: item[1], reverse=True))
+        #
+        # skip_count = 0
+        # skip_count_limit = K / 4
+        # for skip_key in sorted_row_matrx_dict.keys():
+        #     new_dist_matrix[origin_idex][skip_key] = BIG_PENALTY_VALUE
+        #     if skip_count > skip_count_limit:
+        #         break
+        #     else :
+        #         skip_count += 1
 
     tolist = new_dist_matrix.astype(int).tolist()
     return tolist
