@@ -14,6 +14,7 @@ MAX_SOLVING_TIME = 60
 
 def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     # print(f'K : {K}')
+    print(f'solve start time: {datetime.now().strftime("%H:%M:%S")}')
 
     before_make_input_data_time = datetime.now()
     data = make_input_data(K, dist_mat, all_orders, all_riders)
@@ -205,7 +206,6 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH)
     search_parameters.time_limit.seconds = solving_time
 
-    print(f'solve start time: {datetime.now().strftime("%H:%M:%S")}')
 
     # Solve the problem.
     assignment = routing.SolveWithParameters(search_parameters)
@@ -225,6 +225,8 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
             print(vehicle_type)
             dlvry_seq_by_type = solution_bundle_by_type[vehicle_type]
             print(dlvry_seq_by_type)
+
+        print(f'solve end time: {datetime.now().strftime("%H:%M:%S")}')
 
         return solution_bundle_arr
     else:

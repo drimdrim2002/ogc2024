@@ -22,7 +22,7 @@ def main():
     all_data = {}
     all_solution = {}
     for filename in glob.glob(f"{folder_path}/*.json"):
-        if not filename.startswith("problem_sample\\TEST_K50"):
+        if not filename.startswith("problem_sample\\TEST_K"):
             continue
         with open(filename, "r") as f:
             data = json.load(f)
@@ -41,8 +41,8 @@ def main():
         all_solution[file_name] = checked_solution
         print(checked_solution)
 
-    read_previous_result_and_compare_solutions(all_solution)
-    # write_solutions(all_solution)
+    # read_previous_result_and_compare_solutions(all_solution)
+    write_solutions(all_solution)
 
 
 def read_previous_result_and_compare_solutions(all_solution):
