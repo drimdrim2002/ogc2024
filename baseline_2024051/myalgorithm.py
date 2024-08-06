@@ -8,7 +8,7 @@ from datetime import datetime
 import myutil
 
 BIG_PENALTY_VALUE = 99999999
-MARGIN_TIME = 5
+MARGIN_TIME = 3
 MAX_SOLVING_TIME = 60
 
 
