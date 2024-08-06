@@ -302,7 +302,8 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
             data["time_matrix_walk"] = time_matrix
             data["time_matrix_walk"] = data["time_matrix_walk"].astype(int).tolist()
 
-    data["time_windows"] = make_time_window(all_orders, data["time_matrix_car"])
+    make_time_window_matrix =  data["time_matrix_bike"] if K >= 200 else data["time_matrix_car"]
+    data["time_windows"] = make_time_window(all_orders, make_time_window_matrix)
 
     data["num_vehicles"] = num_vehicles
     data["vehicle_capacities"] = vehicle_capacity_arr
@@ -505,6 +506,8 @@ def make_time_window(all_orders, _time_matrix):
         from_time_matrix_index = order.id + 1
         to_time_matrix_index = from_time_matrix_index + len(all_orders)
         duration = _time_matrix[from_time_matrix_index][to_time_matrix_index]
+        if duration == BIG_PENALTY_VALUE:
+            t = 1
         max_shop_dep_dict[order.id] = int(max_deadline - duration)
         min_cust_arr_dict[order.id] = int(order.ready_time + duration)
     for order in all_orders:
