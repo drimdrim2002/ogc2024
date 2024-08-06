@@ -496,7 +496,8 @@ def make_time_window(all_orders, _time_matrix):
     deatline_arr = []
     for order in all_orders:
         deatline_arr.append(order.deadline)
-    time_window_arr = [(0, max(deatline_arr) + 1)]
+    max_deadline = max(deatline_arr)
+    time_window_arr = [(0, max_deadline )]
 
     max_shop_dep_dict = {}
     min_cust_arr_dict = {}
@@ -504,7 +505,7 @@ def make_time_window(all_orders, _time_matrix):
         from_time_matrix_index = order.id + 1
         to_time_matrix_index = from_time_matrix_index + len(all_orders)
         duration = _time_matrix[from_time_matrix_index][to_time_matrix_index]
-        max_shop_dep_dict[order.id] = int(order.deadline - duration)
+        max_shop_dep_dict[order.id] = int(max_deadline - duration)
         min_cust_arr_dict[order.id] = int(order.ready_time + duration)
     for order in all_orders:
         max_shop_dep = max_shop_dep_dict[order.id]

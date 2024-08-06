@@ -41,8 +41,8 @@ def main():
         all_solution[file_name] = checked_solution
         print(checked_solution)
 
-    # read_previous_result_and_compare_solutions(all_solution)
-    write_solutions(all_solution)
+    read_previous_result_and_compare_solutions(all_solution)
+    # write_solutions(all_solution)
 
 
 def read_previous_result_and_compare_solutions(all_solution):
