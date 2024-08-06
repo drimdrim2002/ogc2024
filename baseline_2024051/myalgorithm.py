@@ -260,8 +260,8 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
     ordered_riders = []
     if K <= 50:
         ordered_riders.append(bike_rider)
-        ordered_riders.append(walk_rider)
         ordered_riders.append(car_rider)
+        ordered_riders.append(walk_rider)
     elif 50 < K <= 100:
         ordered_riders.append(car_rider)
         ordered_riders.append(bike_rider)
