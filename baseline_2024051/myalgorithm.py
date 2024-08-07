@@ -32,11 +32,10 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
     routing = pywrapcp.RoutingModel(manager)
 
-    # for excluded_edge in data["excluded_edges"]:
-    #     a = manager.NodeToIndex(excluded_edge[0])
-    #     b = manager.NodeToIndex(excluded_edge[1])
-    #     routing.NextVar(a).RemoveValue(b)
-    #     routing.solver().Add(routing.VehicleVar(a) != routing.VehicleVar(b))
+    for excluded_edge in data["excluded_edges"]:
+        from_loc_index = excluded_edge[0]
+        to_loc_index = excluded_edge[1]
+        data['distance_matrix'][from_loc_index][to_loc_index] = BIG_PENALTY_VALUE
 
     def demand_callback(from_index):
         """Returns the demand of the node."""
@@ -466,7 +465,9 @@ def make_distance_matrix(K, dist_mat):
             shop_to_delivery_dist_avg = int((shop_to_delivery_dist_1 + shop_to_delivery_dist_2) / 2)
 
             total_dist = shop_dist + delivery_dist + shop_to_delivery_dist_avg
-            if total_dist > 13000:
+            
+            # todo customizing 해보자
+            if K >= 200 and total_dist > 13000:
                 new_dist_matrix[origin_idex][destination_idex] = BIG_PENALTY_VALUE
 
             # row_matrix_dict[destination_idex] = total_dist
@@ -628,7 +629,8 @@ def apply_time_penalty_with_util(K, _all_orders, _rider_dict, _data):
     # exclude walk rider
     exclude_walk_rider(K, _all_orders, _data, _rider_dict, all_bundles)
 
-    # exclude_riders(K, _all_orders, _data, all_bundles, bike_rider, car_rider)
+    exclude_riders(K, _all_orders, _data, all_bundles, bike_rider, car_rider)
+
 
 
 def exclude_riders(K, _all_orders, _data, all_bundles, bike_rider, car_rider):
