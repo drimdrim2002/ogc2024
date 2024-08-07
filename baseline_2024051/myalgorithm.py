@@ -54,6 +54,10 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         from_loc_index = excluded_edge[0]
         to_loc_index = excluded_edge[1]
         data['distance_matrix'][from_loc_index][to_loc_index] = BIG_PENALTY_VALUE
+        a = manager.NodeToIndex(excluded_edge[0])
+        b = manager.NodeToIndex(excluded_edge[1])
+        routing.NextVar(a).RemoveValue(b)
+        routing.solver().Add(routing.VehicleVar(a) != routing.VehicleVar(b))
 
     def demand_callback(from_index):
         """Returns the demand of the node."""
@@ -225,7 +229,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         delivery_index = manager.NodeToIndex(request[1])
         routing.AddPickupAndDelivery(pickup_index, delivery_index)
         routing.solver().Add(routing.VehicleVar(pickup_index) == routing.VehicleVar(delivery_index))
-        routing.solver().Add(time_dimension.CumulVar(pickup_index) <= time_dimension.CumulVar(delivery_index))
+        routing.solver().Add(time_dimension.CumulVar(pickup_index) < time_dimension.CumulVar(delivery_index))
 
     # Add time window constraints for each location except depot.
     for location_idx, time in enumerate(data["time_windows"]):
