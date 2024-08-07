@@ -6,8 +6,9 @@ from ortools.constraint_solver import pywrapcp
 import math
 from datetime import datetime
 import myutil
+from util import Rider
 
-BIG_PENALTY_VALUE = 99999999
+BIG_PENALTY_VALUE = int(99999999)
 MARGIN_TIME = 3
 MAX_SOLVING_TIME = 60
 
@@ -16,6 +17,23 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     # print(f'K : {K}')
     print(f'solve start time: {datetime.now().strftime("%H:%M:%S")}')
 
+    # self.type = rider_info[0]
+    #     self.speed = rider_info[1]
+    #     self.capa = rider_info[2]
+    #     self.var_cost = rider_info[3]
+    #     self.fixed_cost = rider_info[4]
+    #     self.service_time = rider_info[5]
+    #     self.available_number = rider_info[6]
+    dummy_rider_info = []
+    dummy_rider_info.append('DUMMY')
+    dummy_rider_info.append(0.01)
+    dummy_rider_info.append(BIG_PENALTY_VALUE)
+    dummy_rider_info.append(1000)
+    dummy_rider_info.append(99999)
+    dummy_rider_info.append(1)
+    dummy_rider_info.append(1)
+    dummy_rider = Rider(dummy_rider_info)
+    all_riders.append(dummy_rider)
     before_make_input_data_time = datetime.now()
     data = make_input_data(K, dist_mat, all_orders, all_riders)
     after_make_input_data_time = datetime.now()
@@ -51,7 +69,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         True,  # start cumul to zero
         'Capacity')
 
-    rider_cost_info = {'CAR': {}, 'BIKE': {}, 'WALK': {}}
+    rider_cost_info = {'CAR': {}, 'BIKE': {}, 'WALK': {}, 'dummy': {}}
 
     for rider in all_riders:
         fixed_cost = rider.fixed_cost
@@ -62,9 +80,12 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         elif rider.type == 'BIKE':
             rider_cost_info['BIKE']['fixed_cost'] = fixed_cost
             rider_cost_info['BIKE']['var_cost'] = var_cost
-        else:
+        elif rider.type == 'WALK':
             rider_cost_info['WALK']['fixed_cost'] = fixed_cost
             rider_cost_info['WALK']['var_cost'] = var_cost
+        else:
+            rider_cost_info['dummy']['fixed_cost'] = 99999
+            rider_cost_info['dummy']['var_cost'] = 1000
 
     # Create and register a transit callback.
     def time_callback_car(from_index, to_index):
@@ -94,6 +115,15 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         return data["time_matrix_walk"][from_node][to_node]
 
     transit_callback_index_walk = routing.RegisterTransitCallback(time_callback_walk)
+
+    def time_callback_dummy(from_index, to_index):
+        """Returns the travel time between the two nodes."""
+        # Convert from routing variable Index to time matrix NodeIndex.
+        from_node = manager.IndexToNode(from_index)
+        to_node = manager.IndexToNode(to_index)
+        return 1
+
+    transit_callback_index_dummy = routing.RegisterTransitCallback(time_callback_dummy)
 
     def cost_callback_car(from_index, to_index):
         from_node = manager.IndexToNode(from_index)
@@ -151,6 +181,11 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
     cost_callback_index_walk = routing.RegisterTransitCallback(cost_callback_walk)
 
+    def cost_callback_dummy(from_index, to_index):
+        return 99999
+
+    cost_callback_index_dummy = routing.RegisterTransitCallback(cost_callback_dummy)
+
     transit_callback_arr = []
     for vehicle_index in range(len(data["vehicle_type_by_index"])):
         vehicle_type = data["vehicle_type_by_index"][vehicle_index]
@@ -162,11 +197,14 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
             transit_callback_arr.append(transit_callback_index_bike)
             routing.SetFixedCostOfVehicle(rider_cost_info['BIKE']['fixed_cost'], vehicle_index)
             routing.SetArcCostEvaluatorOfVehicle(cost_callback_index_bike, vehicle_index)
-        else:
+        elif vehicle_type == 'WALK':
             transit_callback_arr.append(transit_callback_index_walk)
             routing.SetFixedCostOfVehicle(rider_cost_info['WALK']['fixed_cost'], vehicle_index)
             routing.SetArcCostEvaluatorOfVehicle(cost_callback_index_walk, vehicle_index)
-
+        else:
+            transit_callback_arr.append(transit_callback_index_dummy)
+            routing.SetFixedCostOfVehicle(rider_cost_info['dummy']['fixed_cost'], vehicle_index)
+            routing.SetArcCostEvaluatorOfVehicle(cost_callback_index_dummy, vehicle_index)
     # routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index_car)
 
     # Add Time Windows constraint.
@@ -212,6 +250,15 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     # Print solution on console.
     if assignment:
         print_solution_simple(data, manager, routing, assignment, all_riders, K)
+
+        del_idx = len(all_riders) -1
+        rider_idx = 0
+        for rider in all_riders:
+            if rider.type == 'dummy':
+                del_idx = rider_idx
+            rider_idx +=1
+
+        del all_riders[del_idx]
         solution_bundle_arr = make_solution_bundle(data, manager, routing, assignment)
 
         solution_bundle_by_type = {'CAR': [], 'BIKE': [], 'WALK': []}
@@ -255,22 +302,28 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
             car_rider = rider
         elif rider.type == 'BIKE':
             bike_rider = rider
-        else:
+        elif rider.type == 'WALK':
             walk_rider = rider
+        else:
+            dummy_rider = rider
 
     ordered_riders = []
     if K <= 50:
         ordered_riders.append(bike_rider)
         ordered_riders.append(car_rider)
         ordered_riders.append(walk_rider)
+        ordered_riders.append(dummy_rider)
     elif 50 < K <= 100:
         ordered_riders.append(car_rider)
         ordered_riders.append(bike_rider)
         ordered_riders.append(walk_rider)
+        ordered_riders.append(dummy_rider)
+
     else:
         ordered_riders.append(car_rider)
         ordered_riders.append(bike_rider)
         ordered_riders.append(walk_rider)
+        ordered_riders.append(dummy_rider)
 
     for rider in ordered_riders:
         num_vehicles += rider.available_number
@@ -290,28 +343,30 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
                 else:
                     time_matrix[row_index][column_index] = int(math.ceil(distance / rider.speed + rider.service_time))
 
+        dummy_time_matrix = np.ones((2 * K + 1, 2 * K + 1))
         if rider.type == 'CAR':
             data["time_matrix_car"] = time_matrix
             data["time_matrix_car"] = data["time_matrix_car"].astype(int).tolist()
         elif rider.type == 'BIKE':
             data["time_matrix_bike"] = time_matrix
             data["time_matrix_bike"] = data["time_matrix_bike"].astype(int).tolist()
-
-        else:
+        elif rider.type == 'WALK':
             data["time_matrix_walk"] = time_matrix
             data["time_matrix_walk"] = data["time_matrix_walk"].astype(int).tolist()
+        else:
+            data["time_matrix_dummy"] = dummy_time_matrix
 
-    make_time_window_matrix =  data["time_matrix_bike"] if K >= 200 else data["time_matrix_car"]
+    make_time_window_matrix = data["time_matrix_bike"] if K >= 200 else data["time_matrix_car"]
     data["time_windows"] = make_time_window(all_orders, make_time_window_matrix)
 
     data["num_vehicles"] = num_vehicles
     data["vehicle_capacities"] = vehicle_capacity_arr
 
     data["excluded_edges"] = []
-    rider_dict = {}
-    rider_dict['CAR'] = car_rider
-    rider_dict['BIKE'] = bike_rider
-    rider_dict['WALK'] = walk_rider
+    # rider_dict = {}
+    # rider_dict['CAR'] = car_rider
+    # rider_dict['BIKE'] = bike_rider
+    # rider_dict['WALK'] = walk_rider
 
     # apply_time_penalty_with_util(K, all_orders, rider_dict, data)
 
@@ -527,8 +582,10 @@ def print_solution_simple(data, manager, routing, solution, all_riders, K):
             car_rider = rider
         elif rider.type == 'BIKE':
             bike_rider = rider
-        else:
+        elif rider.type == 'WALK':
             walk_rider = rider
+        else:
+            dummy_rider = rider
 
     """Prints solution on console."""
     # print(f"Objective: {solution.ObjectiveValue()}")
@@ -564,8 +621,11 @@ def print_solution_simple(data, manager, routing, solution, all_riders, K):
                 route_cost = car_rider.calculate_cost(route_distance)
             elif vehicle_type == 'BIKE':
                 route_cost = bike_rider.calculate_cost(route_distance)
-            else:
+            elif vehicle_type == 'WALK':
                 route_cost = walk_rider.calculate_cost(route_distance)
+            else:
+                route_cost = dummy_rider.calculate_cost(route_distance)
+
             plan_output += f"Cost of the route: {route_cost}\n"
 
             # print(plan_output)
