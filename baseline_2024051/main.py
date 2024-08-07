@@ -22,7 +22,7 @@ def main():
     all_data = {}
     all_solution = {}
     for filename in glob.glob(f"{folder_path}/*.json"):
-        if not filename.startswith("problem_sample\\TEST_K2"):
+        if not filename.startswith("problem_sample\\TEST_K"):
             continue
         with open(filename, "r") as f:
             data = json.load(f)
