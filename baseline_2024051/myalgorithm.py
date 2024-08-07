@@ -15,7 +15,7 @@ MAX_SOLVING_TIME = 60
 
 def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     # print(f'K : {K}')
-    print(f'solve start time: {datetime.now().strftime("%H:%M:%S")}')
+    # print(f'solve start time: {datetime.now().strftime("%H:%M:%S")}')
 
     # self.type = rider_info[0]
     #     self.speed = rider_info[1]
@@ -38,7 +38,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     data = make_input_data(K, dist_mat, all_orders, all_riders)
     after_make_input_data_time = datetime.now()
     make_input_data_time = (after_make_input_data_time - before_make_input_data_time).seconds
-    print(f'make input data time (sec): ({make_input_data_time})')
+    # print(f'make input data time (sec): ({make_input_data_time})')
 
     solving_time = MAX_SOLVING_TIME - MARGIN_TIME - make_input_data_time
 
@@ -271,12 +271,12 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
             shop_seq = solution_bundle[1]
             solution_bundle_by_type[vehicle_type].append(shop_seq)
 
-        for vehicle_type in solution_bundle_by_type.keys():
-            print(vehicle_type)
-            dlvry_seq_by_type = solution_bundle_by_type[vehicle_type]
-            print(dlvry_seq_by_type)
+        # for vehicle_type in solution_bundle_by_type.keys():
+        #     # print(vehicle_type)
+        #     dlvry_seq_by_type = solution_bundle_by_type[vehicle_type]
+        #     print(dlvry_seq_by_type)
 
-        print(f'solve end time: {datetime.now().strftime("%H:%M:%S")}')
+        # print(f'solve end time: {datetime.now().strftime("%H:%M:%S")}')
 
         return solution_bundle_arr
     else:
@@ -636,8 +636,8 @@ def print_solution_simple(data, manager, routing, solution, all_riders, K):
 
             total_cost += route_cost
 
-    print(f"Total Cost of all routes: {total_cost}")
-    print(f"Best Obj: {total_cost / K}")
+    # print(f"Total Cost of all routes: {total_cost}")
+    # print(f"Best Obj: {total_cost / K}")
 
 
 def make_solution_bundle(data, manager, routing, solution):
