@@ -39,6 +39,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     # uselsee ㅠㅠ
     # exclude_unnecessary_edges(data, manager, routing)
 
+    # 1. Get demand callback index by order
     def demand_callback(from_index):
         """Returns the demand of the node."""
         # Convert from routing variable Index to demands NodeIndex.
@@ -53,25 +54,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         True,  # start cumul to zero
         'Capacity')
 
-    rider_cost_info = {'CAR': {}, 'BIKE': {}, 'WALK': {}, 'dummy': {}}
-
-    for rider in all_riders:
-        fixed_cost = rider.fixed_cost
-        var_cost = rider.var_cost
-        if rider.type == 'CAR':
-            rider_cost_info['CAR']['fixed_cost'] = fixed_cost
-            rider_cost_info['CAR']['var_cost'] = var_cost
-        elif rider.type == 'BIKE':
-            rider_cost_info['BIKE']['fixed_cost'] = fixed_cost
-            rider_cost_info['BIKE']['var_cost'] = var_cost
-        elif rider.type == 'WALK':
-            rider_cost_info['WALK']['fixed_cost'] = fixed_cost
-            rider_cost_info['WALK']['var_cost'] = var_cost
-        else:
-            rider_cost_info['dummy']['fixed_cost'] = 99999
-            rider_cost_info['dummy']['var_cost'] = 1000
-
-    # Create and register a transit callback.
+    # 2. Get transit duration callback index by rider type
     def time_callback_car(from_index, to_index):
         """Returns the travel time between the two nodes."""
         # Convert from routing variable Index to time matrix NodeIndex.
@@ -102,47 +85,28 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
     def time_callback_dummy(from_index, to_index):
         """Returns the travel time between the two nodes."""
-        # Convert from routing variable Index to time matrix NodeIndex.
-        from_node = manager.IndexToNode(from_index)
-        to_node = manager.IndexToNode(to_index)
         return 1
 
     transit_callback_index_dummy = routing.RegisterTransitCallback(time_callback_dummy)
+
+    # 3. Get cost calculation callback index by rider type
+    rider_cost_info = get_rider_cost_info(all_riders)
 
     def cost_callback_car(from_index, to_index):
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
         distance = data["distance_matrix"][from_node][to_node]
-
-        # if distance == BIG_PENALTY_VALUE:
-        #     return BIG_PENALTY_VALUE
-        #
-        # duration = data["time_matrix_car"][from_node][to_node]
-        # if duration == BIG_PENALTY_VALUE:
-        #     return BIG_PENALTY_VALUE
-        # car_fixed_cost = rider_cost_info['CAR']['fixed_cost'] if from_node == 0 else 0
         car_var_cost = rider_cost_info['CAR']['var_cost']
         return int((distance / 100) * car_var_cost)
 
-    # cost_callback_car.SetGlobalSpanCostCoefficient(100)
     cost_callback_index_car = routing.RegisterTransitCallback(cost_callback_car)
 
     def cost_callback_bike(from_index, to_index):
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
         distance = data["distance_matrix"][from_node][to_node]
-
-        # if distance == BIG_PENALTY_VALUE:
-        #     return BIG_PENALTY_VALUE
-        #
-        # duration = data["time_matrix_bike"][from_node][to_node]
-        # if duration == BIG_PENALTY_VALUE:
-        #     return BIG_PENALTY_VALUE
-        # bike_fixed_cost = rider_cost_info['BIKE']['fixed_cost'] if from_node == 0 else 0
         bike_var_cost = rider_cost_info['BIKE']['var_cost']
         return int((distance / 100) * bike_var_cost)
-
-    # cost_callback_bike.SetGlobalSpanCostCoefficient(100)
 
     cost_callback_index_bike = routing.RegisterTransitCallback(cost_callback_bike)
 
@@ -150,18 +114,8 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
         distance = data["distance_matrix"][from_node][to_node]
-
-        # if distance == BIG_PENALTY_VALUE:
-        #     return BIG_PENALTY_VALUE
-        # duration = data["time_matrix_walk"][from_node][to_node]
-        # if duration == BIG_PENALTY_VALUE:
-        #     return BIG_PENALTY_VALUE
-        # walk_fixed_cost = rider_cost_info['WALK']['fixed_cost'] if from_node == 0 else 0
-
         walk_var_cost = rider_cost_info['WALK']['var_cost']
         return int((distance / 100) * walk_var_cost)
-
-    # cost_callback_walk.SetGlobalSpanCostCoefficient(100)
 
     cost_callback_index_walk = routing.RegisterTransitCallback(cost_callback_walk)
 
@@ -170,6 +124,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
     cost_callback_index_dummy = routing.RegisterTransitCallback(cost_callback_dummy)
 
+    # 4. Apply cost calculation by rider type
     transit_callback_arr = []
     for vehicle_index in range(len(data["vehicle_type_by_index"])):
         vehicle_type = data["vehicle_type_by_index"][vehicle_index]
@@ -208,14 +163,14 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         pickup_index = manager.NodeToIndex(request[0])
         delivery_index = manager.NodeToIndex(request[1])
         routing.AddPickupAndDelivery(pickup_index, delivery_index)
-        routing.solver().Add(routing.VehicleVar(pickup_index) == routing.VehicleVar(delivery_index))
-        routing.solver().Add(time_dimension.CumulVar(pickup_index) < time_dimension.CumulVar(delivery_index))
+        routing.solver().Add(routing.VehicleVar(pickup_index) == routing.VehicleVar(delivery_index))  # same vehicle
+        routing.solver().Add(time_dimension.CumulVar(pickup_index) < time_dimension.CumulVar(
+            delivery_index))  # delivery time > pickup time
 
     # Add time window constraints for each location except depot.
     for location_idx, time in enumerate(data["time_windows"]):
         if location_idx == data["depot"]:
             continue
-
         index = manager.NodeToIndex(location_idx)
         time_dimension.CumulVar(index).SetRange(time[0], time[1])
 
@@ -227,20 +182,17 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH)
     search_parameters.time_limit.seconds = solving_time
 
-
     # Solve the problem.
     assignment = routing.SolveWithParameters(search_parameters)
-    # print("Solver status: ", assignment.status())
-    # Print solution on console.
     if assignment:
         print_solution_simple(data, manager, routing, assignment, all_riders, K)
 
-        del_idx = len(all_riders) -1
+        del_idx = len(all_riders) - 1
         rider_idx = 0
         for rider in all_riders:
             if rider.type == 'dummy':
                 del_idx = rider_idx
-            rider_idx +=1
+            rider_idx += 1
 
         del all_riders[del_idx]
         solution_bundle_arr = make_solution_bundle(data, manager, routing, assignment)
@@ -261,6 +213,26 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         return solution_bundle_arr
     else:
         print("No assignment")
+
+
+def get_rider_cost_info(all_riders):
+    rider_cost_info = {'CAR': {}, 'BIKE': {}, 'WALK': {}, 'dummy': {}}
+    for rider in all_riders:
+        fixed_cost = rider.fixed_cost
+        var_cost = rider.var_cost
+        if rider.type == 'CAR':
+            rider_cost_info['CAR']['fixed_cost'] = fixed_cost
+            rider_cost_info['CAR']['var_cost'] = var_cost
+        elif rider.type == 'BIKE':
+            rider_cost_info['BIKE']['fixed_cost'] = fixed_cost
+            rider_cost_info['BIKE']['var_cost'] = var_cost
+        elif rider.type == 'WALK':
+            rider_cost_info['WALK']['fixed_cost'] = fixed_cost
+            rider_cost_info['WALK']['var_cost'] = var_cost
+        else:
+            rider_cost_info['dummy']['fixed_cost'] = 99999
+            rider_cost_info['dummy']['var_cost'] = 1000
+    return rider_cost_info
 
 
 def exclude_unnecessary_edges(data, manager, routing):
@@ -358,6 +330,7 @@ def make_excluded_edges(bike_rider, car_rider, data, walk_rider):
     # rider_dict = {'CAR': car_rider, 'BIKE': bike_rider, 'WALK': walk_rider}
     # apply_time_penalty_with_util(K, all_orders, rider_dict, data)
     return
+
 
 def combinations(k):
     if k < 2:
@@ -515,7 +488,7 @@ def make_time_window(all_orders, _time_matrix):
     for order in all_orders:
         deatline_arr.append(order.deadline)
     max_deadline = max(deatline_arr)
-    time_window_arr = [(0, max_deadline )]
+    time_window_arr = [(0, max_deadline)]
 
     max_shop_dep_dict = {}
     min_cust_arr_dict = {}
@@ -651,7 +624,6 @@ def apply_time_penalty_with_util(K, _all_orders, _rider_dict, _data):
     exclude_walk_rider(K, _all_orders, _data, _rider_dict, all_bundles)
 
     exclude_riders(K, _all_orders, _data, all_bundles, bike_rider, car_rider)
-
 
 
 def exclude_riders(K, _all_orders, _data, all_bundles, bike_rider, car_rider):
