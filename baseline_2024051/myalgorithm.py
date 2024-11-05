@@ -17,22 +17,8 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     # print(f'K : {K}')
     print(f'solve start time: {datetime.now().strftime("%H:%M:%S")}')
 
-    # self.type = rider_info[0]
-    #     self.speed = rider_info[1]
-    #     self.capa = rider_info[2]
-    #     self.var_cost = rider_info[3]
-    #     self.fixed_cost = rider_info[4]
-    #     self.service_time = rider_info[5]
-    #     self.available_number = rider_info[6]
-    dummy_rider_info = []
-    dummy_rider_info.append('DUMMY')
-    dummy_rider_info.append(0.01)
-    dummy_rider_info.append(BIG_PENALTY_VALUE)
-    dummy_rider_info.append(1000)
-    dummy_rider_info.append(99999)
-    dummy_rider_info.append(1)
-    dummy_rider_info.append(1)
-    dummy_rider = Rider(dummy_rider_info)
+    # dummy vehicle이 적용될까?
+    dummy_rider = get_dummy_rider()
     all_riders.append(dummy_rider)
     before_make_input_data_time = datetime.now()
     data = make_input_data(K, dist_mat, all_orders, all_riders)
@@ -281,6 +267,13 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         return solution_bundle_arr
     else:
         print("No assignment")
+
+
+def get_dummy_rider():
+    # type, speed, capa, var_cost, fixed_cost, service_time, available_number
+    dummy_rider_info = ['DUMMY', BIG_PENALTY_VALUE, BIG_PENALTY_VALUE, BIG_PENALTY_VALUE, BIG_PENALTY_VALUE, 0, 1]
+    dummy_rider = Rider(dummy_rider_info)
+    return dummy_rider
 
 
 def make_input_data(K, dist_mat, all_orders, all_riders):
