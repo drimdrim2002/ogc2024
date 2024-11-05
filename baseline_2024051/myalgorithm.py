@@ -15,7 +15,7 @@ MAX_SOLVING_TIME = 60
 
 def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     # print(f'K : {K}')
-    # print(f'solve start time: {datetime.now().strftime("%H:%M:%S")}')
+    print(f'solve start time: {datetime.now().strftime("%H:%M:%S")}')
 
     # self.type = rider_info[0]
     #     self.speed = rider_info[1]
@@ -38,7 +38,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     data = make_input_data(K, dist_mat, all_orders, all_riders)
     after_make_input_data_time = datetime.now()
     make_input_data_time = (after_make_input_data_time - before_make_input_data_time).seconds
-    # print(f'make input data time (sec): ({make_input_data_time})')
+    print(f'make input data time (sec): ({make_input_data_time})')
 
     solving_time = MAX_SOLVING_TIME - MARGIN_TIME - make_input_data_time
 
@@ -312,22 +312,10 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
             dummy_rider = rider
 
     ordered_riders = []
-    if K <= 50:
-        ordered_riders.append(bike_rider)
-        ordered_riders.append(car_rider)
-        ordered_riders.append(walk_rider)
-        ordered_riders.append(dummy_rider)
-    elif 50 < K <= 100:
-        ordered_riders.append(car_rider)
-        ordered_riders.append(bike_rider)
-        ordered_riders.append(walk_rider)
-        ordered_riders.append(dummy_rider)
-
-    else:
-        ordered_riders.append(car_rider)
-        ordered_riders.append(bike_rider)
-        ordered_riders.append(walk_rider)
-        ordered_riders.append(dummy_rider)
+    ordered_riders.append(car_rider)
+    ordered_riders.append(bike_rider)
+    ordered_riders.append(walk_rider)
+    ordered_riders.append(dummy_rider)
 
     for rider in ordered_riders:
         num_vehicles += rider.available_number
@@ -360,17 +348,17 @@ def make_input_data(K, dist_mat, all_orders, all_riders):
         else:
             data["time_matrix_dummy"] = dummy_time_matrix
 
-    make_time_window_matrix = data["time_matrix_bike"] if K >= 200 else data["time_matrix_car"]
+    make_time_window_matrix = data["time_matrix_bike"]
     data["time_windows"] = make_time_window(all_orders, make_time_window_matrix)
 
     data["num_vehicles"] = num_vehicles
     data["vehicle_capacities"] = vehicle_capacity_arr
 
     data["excluded_edges"] = []
-    # rider_dict = {}
-    # rider_dict['CAR'] = car_rider
-    # rider_dict['BIKE'] = bike_rider
-    # rider_dict['WALK'] = walk_rider
+    rider_dict = {}
+    rider_dict['CAR'] = car_rider
+    rider_dict['BIKE'] = bike_rider
+    rider_dict['WALK'] = walk_rider
 
     # apply_time_penalty_with_util(K, all_orders, rider_dict, data)
 
@@ -523,11 +511,11 @@ def make_distance_matrix(K, dist_mat):
             shop_to_delivery_dist_2 = new_dist_matrix[destination_idex][origin_idex + K]
             shop_to_delivery_dist_avg = int((shop_to_delivery_dist_1 + shop_to_delivery_dist_2) / 2)
 
-            total_dist = shop_dist + delivery_dist + shop_to_delivery_dist_avg
+            # total_dist = shop_dist + delivery_dist + shop_to_delivery_dist_avg
             
             # todo customizing 해보자
-            if K >= 200 and total_dist > 13000:
-                new_dist_matrix[origin_idex][destination_idex] = BIG_PENALTY_VALUE
+            # if K >= 200 and total_dist > 13000:
+            #     new_dist_matrix[origin_idex][destination_idex] = BIG_PENALTY_VALUE
 
             # row_matrix_dict[destination_idex] = total_dist
         # sorted_row_matrx_dict = dict(sorted(row_matrix_dict.items(), key=lambda item: item[1], reverse=True))
